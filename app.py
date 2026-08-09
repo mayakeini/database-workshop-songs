@@ -1,13 +1,43 @@
 from src.logger_config import setup_logger
-from src.phrase_service import (
-    create_and_search_phrase,
+from src.statistics_service import (
+    get_database_summary,
+    get_song_statistics,
+    get_most_frequent_words,
+    get_rarest_words,
+    get_word_length_distribution,
+    get_words_per_stanza,
 )
 
 setup_logger()
 
-phrase_id = create_and_search_phrase(
-    phrase_name="Love Is",
-    phrase_text="love is",
-)
+print("DATABASE SUMMARY:")
+print(get_database_summary())
 
-print(f"Created phrase ID: {phrase_id}")
+print()
+
+print("SONG STATISTICS:")
+print(get_song_statistics(1))
+
+print()
+
+print("MOST FREQUENT WORDS:")
+for row in get_most_frequent_words(limit=5):
+    print(row)
+
+print()
+
+print("RAREST WORDS:")
+for row in get_rarest_words(limit=5):
+    print(row)
+
+print()
+
+print("WORD LENGTH DISTRIBUTION:")
+for row in get_word_length_distribution():
+    print(row)
+
+print()
+
+print("WORDS PER STANZA:")
+for row in get_words_per_stanza(1):
+    print(row)

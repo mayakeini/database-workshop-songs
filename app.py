@@ -1,28 +1,13 @@
 from src.logger_config import setup_logger
-from src.search_service import (
-    get_word_index,
-    find_line_by_global_number,
-    find_line_by_stanza_position,
-    find_word_by_position,
+from src.phrase_service import (
+    create_and_search_phrase,
 )
 
 setup_logger()
 
-print("WORD INDEX:")
-for row in get_word_index(1):
-    print(row)
+phrase_id = create_and_search_phrase(
+    phrase_name="Love Is",
+    phrase_text="love is",
+)
 
-print()
-
-print("GLOBAL LINE 3:")
-print(find_line_by_global_number(1, 3))
-
-print()
-
-print("STANZA 2, LINE 1:")
-print(find_line_by_stanza_position(1, 2, 1))
-
-print()
-
-print("WORD AT LINE 3, POSITION 4:")
-print(find_word_by_position(1, 3, 4))
+print(f"Created phrase ID: {phrase_id}")

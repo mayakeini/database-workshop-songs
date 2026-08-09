@@ -231,3 +231,145 @@ def get_group_occurrences(group_id):
 
     finally:
         connection.close()
+
+
+def update_group(
+    group_id: int,
+    group_name: str,
+    description: str | None = None,
+) -> bool:
+    """
+    Updates the name and description of an existing word group.
+
+    Args:
+        group_id: The ID of the group to update.
+        group_name: The new group name.
+        description: The new optional group description.
+
+    Returns:
+        True if a group was updated, False if the group does not exist.
+
+    Raises:
+        ValueError: If the group name is empty.
+        Exception: If the database operation fails.
+    """
+    if not group_name.strip():
+        logger.warning(
+            "Attempted to update group id %s with an empty name",
+            group_id,
+        )
+        raise ValueError("Group name cannot be empty")
+
+    logger.info(
+        "Updating group id %s to name '%s'",
+        group_id,
+        group_name,
+    )
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            UPDATE word_groups
+            SET group_name = :group_name,
+                description = :description
+            WHERE group_id = :group_id
+            """,
+            group_name=group_name,
+            description=description,
+            group_id=group_id,
+        )
+
+        updated = cursor.rowcount > 0
+
+        connection.commit()
+
+        if updated:
+            logger.info(
+                "Group id %s updated successfully",
+                group_id,
+            )
+        else:
+            logger.warning(
+                "Group id %s was not found",
+                group_id,
+            )
+
+        return updated
+
+    except Exception:
+        connection.rollback()
+        logger.exception(
+            "Failed to update group id %s",
+            group_id,
+        )
+        raise
+
+    finally:
+        connection.close()
+
+
+def delete_group(group_id: int) -> bool:
+    """
+    Deletes a word group.
+
+    Words themselves are not deleted. Only the group and its
+    word associations are removed.
+
+    Args:
+        group_id: The ID of the group to delete.
+
+    Returns:
+        True if the group was deleted, False if it did not exist.
+
+    Raises:
+        Exception: If the database operation fails.
+    """
+    logger.info(
+        "Deleting group id %s",
+        group_id,
+    )
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            DELETE FROM word_groups
+            WHERE group_id = :group_id
+            """,
+            group_id=group_id,
+        )
+
+        deleted = cursor.rowcount > 0
+
+        connection.commit()
+
+        if deleted:
+            logger.info(
+                "Group id %s deleted successfully",
+                group_id,
+            )
+        else:
+            logger.warning(
+                "Group id %s was not found",
+                group_id,
+            )
+
+        return deleted
+
+    except Exception:
+        connection.rollback()
+        logger.exception(
+            "Failed to delete group id %s",
+            group_id,
+        )
+        raise
+
+    finally:
+        connection.close()

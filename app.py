@@ -1,43 +1,24 @@
 from src.logger_config import setup_logger
-from src.statistics_service import (
-    get_database_summary,
-    get_song_statistics,
-    get_most_frequent_words,
-    get_rarest_words,
-    get_word_length_distribution,
-    get_words_per_stanza,
+from src.phrase_service import (
+    get_phrases,
+    get_phrase_occurrences,
+    get_phrase_occurrences_with_context,
 )
 
 setup_logger()
 
-print("DATABASE SUMMARY:")
-print(get_database_summary())
+print("PHRASES:")
+for phrase in get_phrases():
+    print(phrase)
 
 print()
 
-print("SONG STATISTICS:")
-print(get_song_statistics(1))
+print("PHRASE OCCURRENCES:")
+for occurrence in get_phrase_occurrences(1):
+    print(occurrence)
 
 print()
 
-print("MOST FREQUENT WORDS:")
-for row in get_most_frequent_words(limit=5):
-    print(row)
-
-print()
-
-print("RAREST WORDS:")
-for row in get_rarest_words(limit=5):
-    print(row)
-
-print()
-
-print("WORD LENGTH DISTRIBUTION:")
-for row in get_word_length_distribution():
-    print(row)
-
-print()
-
-print("WORDS PER STANZA:")
-for row in get_words_per_stanza(1):
-    print(row)
+print("PHRASE OCCURRENCES WITH CONTEXT:")
+for occurrence in get_phrase_occurrences_with_context(1):
+    print(occurrence)

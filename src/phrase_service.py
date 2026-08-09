@@ -367,3 +367,288 @@ def create_and_search_phrase(
     )
 
     return phrase_id
+
+def get_phrases() -> list[tuple[int, str, str, object]]:
+    """
+    Returns all phrase definitions stored in the database.
+
+    Returns:
+        A list of tuples in the format:
+        (
+            phrase_id,
+            phrase_name,
+            phrase_text,
+            creation_date
+        )
+
+    Raises:
+        Exception: If the database query fails.
+    """
+    logger.info("Fetching all phrases")
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                phrase_id,
+                phrase_name,
+                phrase_text,
+                creation_date
+            FROM phrases
+            ORDER BY phrase_name
+            """
+        )
+
+        result = cursor.fetchall()
+
+        logger.info(
+            "Fetched %s phrases",
+            len(result),
+        )
+
+        return result
+
+    except Exception:
+        logger.exception("Failed to fetch phrases")
+        raise
+
+    finally:
+        connection.close()
+
+def delete_phrase(phrase_id: int) -> bool:
+    """
+    Deletes a phrase and all of its stored occurrences.
+
+    Args:
+        phrase_id: The ID of the phrase to delete.
+
+    Returns:
+        True if the phrase was deleted, False if it did not exist.
+
+    Raises:
+        Exception: If the database operation fails.
+    """
+    logger.info(
+        "Deleting phrase id %s",
+        phrase_id,
+    )
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            DELETE FROM phrases
+            WHERE phrase_id = :phrase_id
+            """,
+            phrase_id=phrase_id,
+        )
+
+        deleted = cursor.rowcount > 0
+
+        connection.commit()
+
+        if deleted:
+            logger.info(
+                "Phrase id %s deleted successfully",
+                phrase_id,
+            )
+        else:
+            logger.warning(
+                "Phrase id %s was not found",
+                phrase_id,
+            )
+
+        return deleted
+
+    except Exception:
+        connection.rollback()
+        logger.exception(
+            "Failed to delete phrase id %s",
+            phrase_id,
+        )
+        raise
+
+    finally:
+        connection.close()
+
+def get_phrase_occurrences(
+    phrase_id: int,
+) -> list[tuple[int, str, int, int, int]]:
+    """
+    Returns all stored occurrences of a phrase.
+
+    Args:
+        phrase_id: The ID of the phrase.
+
+    Returns:
+        A list of tuples in the format:
+        (
+            song_id,
+            song_title,
+            global_line_number,
+            start_position_in_line,
+            end_position_in_line
+        )
+
+    Raises:
+        Exception: If the database query fails.
+    """
+    logger.info(
+        "Fetching occurrences for phrase id %s",
+        phrase_id,
+    )
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                s.song_id,
+                s.title,
+                start_occ.global_line_number,
+                start_occ.position_in_line,
+                end_occ.position_in_line
+            FROM phrase_occurrences po
+            JOIN songs s
+                ON po.song_id = s.song_id
+            JOIN word_occurrences start_occ
+                ON po.start_occurrence_id = start_occ.occurrence_id
+            JOIN word_occurrences end_occ
+                ON po.end_occurrence_id = end_occ.occurrence_id
+            WHERE po.phrase_id = :phrase_id
+            ORDER BY
+                s.song_id,
+                start_occ.position_in_song
+            """,
+            phrase_id=phrase_id,
+        )
+
+        result = cursor.fetchall()
+
+        logger.info(
+            "Fetched %s occurrences for phrase id %s",
+            len(result),
+            phrase_id,
+        )
+
+        return result
+
+    except Exception:
+        logger.exception(
+            "Failed to fetch occurrences for phrase id %s",
+            phrase_id,
+        )
+        raise
+
+    finally:
+        connection.close()
+
+def get_phrase_occurrences_with_context(
+    phrase_id: int,
+) -> list[dict[str, object]]:
+    """
+    Returns phrase occurrences together with their textual context.
+
+    The context includes the previous line, the line containing
+    the phrase, and the next line when they exist.
+
+    Args:
+        phrase_id: The ID of the phrase.
+
+    Returns:
+        A list of dictionaries containing occurrence information
+        and surrounding text.
+
+    Raises:
+        Exception: If retrieving the occurrences or context fails.
+    """
+    logger.info(
+        "Fetching occurrences with context for phrase id %s",
+        phrase_id,
+    )
+
+    occurrences = get_phrase_occurrences(phrase_id)
+
+    results: list[dict[str, object]] = []
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        for (
+            song_id,
+            song_title,
+            global_line_number,
+            start_position,
+            end_position,
+        ) in occurrences:
+
+            cursor.execute(
+                """
+                SELECT
+                    global_line_number,
+                    position_in_line,
+                    original_token
+                FROM word_occurrences
+                WHERE song_id = :song_id
+                  AND global_line_number BETWEEN :previous_line AND :next_line
+                ORDER BY
+                    global_line_number,
+                    position_in_line
+                """,
+                song_id=song_id,
+                previous_line=global_line_number - 1,
+                next_line=global_line_number + 1,
+            )
+
+            rows = cursor.fetchall()
+
+            lines: dict[int, list[str]] = {}
+
+            for line_number, _, token in rows:
+                lines.setdefault(line_number, []).append(token)
+
+            context = {
+                line_number: " ".join(tokens)
+                for line_number, tokens in lines.items()
+            }
+
+            results.append(
+                {
+                    "song_id": song_id,
+                    "song_title": song_title,
+                    "global_line_number": global_line_number,
+                    "start_position": start_position,
+                    "end_position": end_position,
+                    "context": context,
+                }
+            )
+
+        logger.info(
+            "Built context for %s occurrences of phrase id %s",
+            len(results),
+            phrase_id,
+        )
+
+        return results
+
+    except Exception:
+        logger.exception(
+            "Failed to build context for phrase id %s",
+            phrase_id,
+        )
+        raise
+
+    finally:
+        connection.close()

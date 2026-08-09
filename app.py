@@ -1,13 +1,28 @@
 from src.logger_config import setup_logger
-from src.text_parser import parse_song
+from src.search_service import (
+    get_word_index,
+    find_line_by_global_number,
+    find_line_by_stanza_position,
+    find_word_by_position,
+)
 
-logger = setup_logger()
+setup_logger()
 
-logger.info("Application started")
+print("WORD INDEX:")
+for row in get_word_index(1):
+    print(row)
 
-song = parse_song("sample_songs/example.txt")
+print()
 
-for occurrence in song:
-    print(occurrence)
+print("GLOBAL LINE 3:")
+print(find_line_by_global_number(1, 3))
 
-logger.info("Application finished successfully")
+print()
+
+print("STANZA 2, LINE 1:")
+print(find_line_by_stanza_position(1, 2, 1))
+
+print()
+
+print("WORD AT LINE 3, POSITION 4:")
+print(find_word_by_position(1, 3, 4))

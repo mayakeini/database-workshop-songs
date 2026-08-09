@@ -1,3 +1,5 @@
 oracledb
 streamlit
 python-dotenv
+altair
+pandas

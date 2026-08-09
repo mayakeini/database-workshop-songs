@@ -6,17 +6,45 @@ from src.text_parser import parse_song
 logger = logging.getLogger(__name__)
 
 
-def insert_song(file_path: str, title: str, artist: str, album: str, publication_year: int) -> int:
+def insert_song(
+    file_path: str,
+    title: str,
+    artist: str,
+    album: str | None,
+    publication_year: int,
+) -> int:
     """
-    Insert song into Oracle
-    :param file_path: str of the file path
-    :param title: str of the title
-    :param artist: str of the artist name
-    :param album: str of the album name
-    :param publication_year: int of the publication year
-    :return: song id
+    Parses a song file and inserts the song, stanzas, words,
+    and word occurrences into the database.
+
+    Args:
+        file_path: Path to the TXT song file.
+        title: Song title.
+        artist: Artist name.
+        album: Optional album name.
+        publication_year: Year the song was published.
+
+    Returns:
+        The database ID of the inserted song.
+
+    Raises:
+        Exception: If parsing or database insertion fails.
     """
     logger.info(fr"Starting song insertion: {title}")
+
+    if song_exists(
+            title=title,
+            artist=artist,
+            album=album,
+    ):
+        logger.warning(
+            "Song insertion rejected because it already exists: '%s' by '%s'",
+            title,
+            artist,
+        )
+        raise ValueError(
+            f"The song '{title}' by '{artist}' already exists."
+        )
 
     occurrences = parse_song(file_path)
 
@@ -275,6 +303,74 @@ def get_song_text(song_id: int) -> str:
             result.append(" ".join(line_tokens))
 
         return "\n".join(result)
+
+    finally:
+        connection.close()
+
+def song_exists(
+    title: str,
+    artist: str,
+    album: str | None,
+) -> bool:
+    """
+    Checks whether a song with the same title, artist, and album
+    already exists in the database.
+
+    Args:
+        title: Song title.
+        artist: Artist name.
+        album: Album name, or None if no album was provided.
+
+    Returns:
+        True if a matching song already exists, otherwise False.
+
+    Raises:
+        Exception: If the database query fails.
+    """
+    logger.info(
+        "Checking whether song already exists: title='%s', artist='%s', album='%s'",
+        title,
+        artist,
+        album,
+    )
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM songs
+            WHERE LOWER(title) = LOWER(:title)
+              AND LOWER(artist) = LOWER(:artist)
+              AND (
+                    (album IS NULL AND :album IS NULL)
+                    OR LOWER(album) = LOWER(:album)
+                  )
+            """,
+            title=title,
+            artist=artist,
+            album=album,
+        )
+
+        count = cursor.fetchone()[0]
+        exists = count > 0
+
+        logger.info(
+            "Song existence check completed. Exists=%s",
+            exists,
+        )
+
+        return exists
+
+    except Exception:
+        logger.exception(
+            "Failed to check whether song '%s' already exists",
+            title,
+        )
+        raise
 
     finally:
         connection.close()

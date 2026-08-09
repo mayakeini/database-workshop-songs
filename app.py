@@ -1,24 +1,88 @@
+import logging
+
+import streamlit as st
+
 from src.logger_config import setup_logger
-from src.phrase_service import (
-    get_phrases,
-    get_phrase_occurrences,
-    get_phrase_occurrences_with_context,
-)
+from src.statistics_service import get_database_summary
 
 setup_logger()
 
-print("PHRASES:")
-for phrase in get_phrases():
-    print(phrase)
+logger = logging.getLogger(__name__)
 
-print()
 
-print("PHRASE OCCURRENCES:")
-for occurrence in get_phrase_occurrences(1):
-    print(occurrence)
+def main() -> None:
+    """
+    Renders the main page of the concordance application.
 
-print()
+    The page displays a short description of the system and general
+    statistics about the current database.
 
-print("PHRASE OCCURRENCES WITH CONTEXT:")
-for occurrence in get_phrase_occurrences_with_context(1):
-    print(occurrence)
+    Returns:
+        None.
+    """
+    logger.info("Rendering main application page")
+
+    st.set_page_config(
+        page_title="Songs Concordance System",
+        page_icon="🎵",
+        layout="wide",
+    )
+
+    st.title("🎵 Songs Concordance System")
+
+    st.write(
+        """
+        A concordance and text retrieval system for English songs.
+
+        The system allows users to upload songs, search for words and
+        phrases, inspect word locations and contexts, create word groups,
+        view indexes and statistics, and back up or restore the database.
+        """
+    )
+
+    try:
+        summary = get_database_summary()
+
+        st.subheader("Database Summary")
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric(
+                "Songs",
+                summary["song_count"],
+            )
+
+        with col2:
+            st.metric(
+                "Total Words",
+                summary["total_words"],
+            )
+
+        with col3:
+            st.metric(
+                "Unique Words",
+                summary["unique_words"],
+            )
+
+        with col4:
+            st.metric(
+                "Average Word Length",
+                summary["average_word_length"],
+            )
+
+        logger.info("Main page rendered successfully")
+
+    except Exception:
+        logger.exception(
+            "Failed to load database summary on main page"
+        )
+
+        st.error(
+            "Could not load database statistics. "
+            "Please verify that Oracle is running."
+        )
+
+
+if __name__ == "__main__":
+    main()

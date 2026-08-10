@@ -1,5 +1,8 @@
 import logging
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from src.db import get_connection
 from src.text_parser import parse_song
 
@@ -48,6 +51,16 @@ def insert_song(
 
     occurrences = parse_song(file_path)
 
+    if not occurrences:
+        logger.warning(
+            "Song upload rejected because the file contains no valid words: %s",
+            file_path,
+        )
+
+        raise ValueError(
+            "The uploaded song file is empty or contains no valid words."
+        )
+
     connection = get_connection()
 
     try:
@@ -55,19 +68,30 @@ def insert_song(
 
         song_id_var = cursor.var(int)
 
+        israel_time = datetime.now(
+            ZoneInfo("Asia/Jerusalem")
+        )
+
+        logger.info(
+            "Using Israel upload time: %s",
+            israel_time,
+        )
+
         cursor.execute(
             """
             INSERT INTO songs (
                 title,
                 artist,
                 album,
-                publication_year
+                publication_year,
+                upload_date
             )
             VALUES (
                 :title,
                 :artist,
                 :album,
-                :publication_year
+                :publication_year,
+                :upload_date
             )
             RETURNING song_id INTO :song_id
             """,
@@ -75,6 +99,7 @@ def insert_song(
             artist=artist,
             album=album,
             publication_year=publication_year,
+            upload_date=israel_time,
             song_id=song_id_var,
         )
 

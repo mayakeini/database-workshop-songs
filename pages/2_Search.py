@@ -1,6 +1,8 @@
 import logging
 from typing import Any
 
+from datetime import datetime
+
 import streamlit as st
 
 from src.logger_config import setup_logger
@@ -9,15 +11,21 @@ from src.search_service import (
     search_word,
     get_context,
 )
+from src.song_service import get_song_text
 
 setup_logger()
 
 logger = logging.getLogger(__name__)
 
 
-def display_song_results(results: list[tuple[Any, ...]]) -> None:
+def display_song_results(
+    results: list[tuple[Any, ...]],
+) -> None:
     """
-    Displays song metadata search results in a table.
+    Displays song metadata search results.
+
+    Each matching song is displayed inside an expandable section
+    containing its metadata and the reconstructed full song text.
 
     Args:
         results: Song rows returned from search_songs().
@@ -31,37 +39,109 @@ def display_song_results(results: list[tuple[Any, ...]]) -> None:
     )
 
     if not results:
-        logger.info("No songs matched the search")
-        st.info("No songs found.")
-        return
-
-    rows = []
-
-    for (
-        song_id,
-        title,
-        artist,
-        album,
-        publication_year,
-        upload_date,
-    ) in results:
-        rows.append(
-            {
-                "ID": song_id,
-                "Title": title,
-                "Artist": artist,
-                "Album": album or "",
-                "Publication Year": publication_year,
-                "Upload Date": upload_date,
-            }
+        logger.info(
+            "No songs matched the search"
         )
 
-    st.dataframe(
-        rows,
-        use_container_width=True,
-        hide_index=True,
+        st.info(
+            "No songs found."
+        )
+        return
+
+    if len(results) == 0:
+        st.info(
+            "No songs were found matching the search criteria."
+        )
+        return
+
+    st.success(
+        f"Found {len(results)} song"
+        f"{'s' if len(results) != 1 else ''}."
     )
 
+    for index, result in enumerate(
+        results,
+        start=1,
+    ):
+        (
+            song_id,
+            title,
+            artist,
+            album,
+            publication_year,
+            upload_date,
+        ) = result
+
+        with st.expander(
+            f"{index}. {title} — {artist}"
+        ):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.write(
+                    f"**Title:** {title}"
+                )
+                st.write(
+                    f"**Artist:** {artist}"
+                )
+                st.write(
+                    f"**Album:** {album or '—'}"
+                )
+
+            with col2:
+                st.write(
+                    f"**Publication Year:** "
+                    f"{publication_year}"
+                )
+                st.write(
+                    f"**Upload Date:** "
+                    f"{upload_date}"
+                )
+                st.write(
+                    f"**Song ID:** {song_id}"
+                )
+
+            st.markdown("---")
+
+            st.markdown(
+                "**Full Song:**"
+            )
+
+            try:
+                full_song = get_song_text(
+                    song_id=song_id,
+                )
+
+                if full_song.strip():
+                    st.text(
+                        full_song
+                    )
+
+                    logger.info(
+                        "Displayed full text for song id %s",
+                        song_id,
+                    )
+
+                else:
+                    logger.warning(
+                        "Song id %s has no reconstructed text",
+                        song_id,
+                    )
+
+                    st.info(
+                        "No song text is available."
+                    )
+
+            except Exception:
+                logger.exception(
+                    "Failed to display full text "
+                    "for song id %s",
+                    song_id,
+                )
+
+                st.error(
+                    "Could not load the full song text."
+                )
 
 def display_word_results(results: list[tuple[Any, ...]]) -> None:
     """
@@ -172,6 +252,23 @@ def render_song_search() -> None:
 
     st.subheader("Search Songs")
 
+    current_year = datetime.now().year
+
+    use_year = st.checkbox(
+        "Filter by publication year",
+        key="search_use_year",
+    )
+
+    publication_year = st.number_input(
+        "Publication Year",
+        min_value=1000,
+        max_value=current_year,
+        value=current_year,
+        step=1,
+        disabled=not use_year,
+        key="search_publication_year",
+    )
+
     with st.form("song_search_form"):
         title = st.text_input(
             "Song Title",
@@ -186,18 +283,6 @@ def render_song_search() -> None:
         album = st.text_input(
             "Album",
             key="search_song_album",
-        )
-
-        use_year = st.checkbox(
-            "Filter by publication year"
-        )
-
-        publication_year = st.number_input(
-            "Publication Year",
-            min_value=1000,
-            max_value=9999,
-            step=1,
-            disabled=not use_year,
         )
 
         submitted = st.form_submit_button(
@@ -237,7 +322,6 @@ def render_song_search() -> None:
             "Could not search the songs. "
             "Please check the application logs."
         )
-
 
 def render_word_search() -> None:
     """

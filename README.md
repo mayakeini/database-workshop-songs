@@ -429,6 +429,6 @@ http://localhost:8501
 ## Authors
 
 Maya Keini  
-Roi Lantzman
+Roie Landsman
 
 Open University - Database Workshop

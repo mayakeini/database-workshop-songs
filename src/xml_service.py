@@ -29,7 +29,10 @@ def _add_text_element(
         tag,
     )
 
-    element = ET.SubElement(parent, tag)
+    element = ET.SubElement(
+        parent,
+        tag,
+    )
 
     if value is not None:
         if isinstance(value, datetime):
@@ -64,6 +67,7 @@ def _get_required_text(
             "Required XML element '%s' is missing",
             tag,
         )
+
         raise ValueError(
             f"Required XML element '{tag}' is missing."
         )
@@ -107,7 +111,8 @@ def export_database_to_xml() -> bytes:
         UTF-8 encoded XML data.
 
     Raises:
-        Exception: If reading from the database or creating the XML fails.
+        Exception: If reading from the database or creating
+            the XML document fails.
     """
     logger.info(
         "Starting full database export to XML"
@@ -170,14 +175,30 @@ def export_database_to_xml() -> bytes:
                 id=str(song_id),
             )
 
-            _add_text_element(song_element, "title", title)
-            _add_text_element(song_element, "artist", artist)
-            _add_text_element(song_element, "album", album)
+            _add_text_element(
+                song_element,
+                "title",
+                title,
+            )
+
+            _add_text_element(
+                song_element,
+                "artist",
+                artist,
+            )
+
+            _add_text_element(
+                song_element,
+                "album",
+                album,
+            )
+
             _add_text_element(
                 song_element,
                 "publication_year",
                 publication_year,
             )
+
             _add_text_element(
                 song_element,
                 "upload_date",
@@ -201,7 +222,11 @@ def export_database_to_xml() -> bytes:
             """
         )
 
-        for stanza_id, song_id, stanza_number in cursor.fetchall():
+        for (
+            stanza_id,
+            song_id,
+            stanza_number,
+        ) in cursor.fetchall():
             stanza_element = ET.SubElement(
                 stanzas_element,
                 "stanza",
@@ -213,6 +238,7 @@ def export_database_to_xml() -> bytes:
                 "song_id",
                 song_id,
             )
+
             _add_text_element(
                 stanza_element,
                 "stanza_number",
@@ -229,14 +255,16 @@ def export_database_to_xml() -> bytes:
             """
             SELECT
                 word_id,
-                text,
-                word_length
+                text
             FROM words
             ORDER BY word_id
             """
         )
 
-        for word_id, text, word_length in cursor.fetchall():
+        for (
+            word_id,
+            text,
+        ) in cursor.fetchall():
             word_element = ET.SubElement(
                 words_element,
                 "word",
@@ -247,11 +275,6 @@ def export_database_to_xml() -> bytes:
                 word_element,
                 "text",
                 text,
-            )
-            _add_text_element(
-                word_element,
-                "word_length",
-                word_length,
             )
 
         # WORD OCCURRENCES
@@ -301,36 +324,43 @@ def export_database_to_xml() -> bytes:
                 "word_id",
                 word_id,
             )
+
             _add_text_element(
                 occurrence_element,
                 "song_id",
                 song_id,
             )
+
             _add_text_element(
                 occurrence_element,
                 "stanza_id",
                 stanza_id,
             )
+
             _add_text_element(
                 occurrence_element,
                 "global_line_number",
                 global_line_number,
             )
+
             _add_text_element(
                 occurrence_element,
                 "line_number_in_stanza",
                 line_number_in_stanza,
             )
+
             _add_text_element(
                 occurrence_element,
                 "position_in_line",
                 position_in_line,
             )
+
             _add_text_element(
                 occurrence_element,
                 "position_in_song",
                 position_in_song,
             )
+
             _add_text_element(
                 occurrence_element,
                 "original_token",
@@ -372,11 +402,13 @@ def export_database_to_xml() -> bytes:
                 "group_name",
                 group_name,
             )
+
             _add_text_element(
                 group_element,
                 "description",
                 description,
             )
+
             _add_text_element(
                 group_element,
                 "creation_date",
@@ -395,11 +427,16 @@ def export_database_to_xml() -> bytes:
                 group_id,
                 word_id
             FROM group_words
-            ORDER BY group_id, word_id
+            ORDER BY
+                group_id,
+                word_id
             """
         )
 
-        for group_id, word_id in cursor.fetchall():
+        for (
+            group_id,
+            word_id,
+        ) in cursor.fetchall():
             relation_element = ET.SubElement(
                 group_words_element,
                 "group_word",
@@ -410,6 +447,7 @@ def export_database_to_xml() -> bytes:
                 "group_id",
                 group_id,
             )
+
             _add_text_element(
                 relation_element,
                 "word_id",
@@ -451,11 +489,13 @@ def export_database_to_xml() -> bytes:
                 "phrase_name",
                 phrase_name,
             )
+
             _add_text_element(
                 phrase_element,
                 "phrase_text",
                 phrase_text,
             )
+
             _add_text_element(
                 phrase_element,
                 "creation_date",
@@ -501,16 +541,19 @@ def export_database_to_xml() -> bytes:
                 "phrase_id",
                 phrase_id,
             )
+
             _add_text_element(
                 phrase_occurrence_element,
                 "song_id",
                 song_id,
             )
+
             _add_text_element(
                 phrase_occurrence_element,
                 "start_occurrence_id",
                 start_occurrence_id,
             )
+
             _add_text_element(
                 phrase_occurrence_element,
                 "end_occurrence_id",
@@ -571,12 +614,15 @@ def restore_database_from_xml(
     )
 
     try:
-        root = ET.fromstring(xml_data)
+        root = ET.fromstring(
+            xml_data
+        )
 
     except ET.ParseError as error:
         logger.exception(
             "Uploaded XML could not be parsed"
         )
+
         raise ValueError(
             "The uploaded file is not valid XML."
         ) from error
@@ -586,6 +632,7 @@ def restore_database_from_xml(
             "Invalid XML root element: %s",
             root.tag,
         )
+
         raise ValueError(
             "The XML file is not a concordance backup."
         )
@@ -607,8 +654,10 @@ def restore_database_from_xml(
                 "Required XML section '%s' is missing",
                 section_name,
             )
+
             raise ValueError(
-                f"Required XML section '{section_name}' is missing."
+                f"Required XML section "
+                f"'{section_name}' is missing."
             )
 
     connection = get_connection()
@@ -655,10 +704,21 @@ def restore_database_from_xml(
             )
 
         # SONGS
-        songs_section = root.find("songs")
+        songs_section = root.find(
+            "songs"
+        )
 
-        for song in songs_section.findall("song"):
-            old_id = int(song.attrib["id"])
+        if songs_section is None:
+            raise ValueError(
+                "Required XML section 'songs' is missing."
+            )
+
+        for song in songs_section.findall(
+            "song"
+        ):
+            old_id = int(
+                song.attrib["id"]
+            )
 
             new_id_var = cursor.var(int)
 
@@ -685,9 +745,18 @@ def restore_database_from_xml(
                 )
                 RETURNING song_id INTO :song_id
                 """,
-                title=_get_required_text(song, "title"),
-                artist=_get_required_text(song, "artist"),
-                album=_get_optional_text(song, "album"),
+                title=_get_required_text(
+                    song,
+                    "title",
+                ),
+                artist=_get_required_text(
+                    song,
+                    "artist",
+                ),
+                album=_get_optional_text(
+                    song,
+                    "album",
+                ),
                 publication_year=int(
                     _get_required_text(
                         song,
@@ -700,14 +769,29 @@ def restore_database_from_xml(
                 song_id=new_id_var,
             )
 
-            song_map[old_id] = new_id_var.getvalue()[0]
+            song_map[
+                old_id
+            ] = new_id_var.getvalue()[0]
+
             counts["songs"] += 1
 
         # STANZAS
-        stanzas_section = root.find("stanzas")
+        stanzas_section = root.find(
+            "stanzas"
+        )
 
-        for stanza in stanzas_section.findall("stanza"):
-            old_id = int(stanza.attrib["id"])
+        if stanzas_section is None:
+            raise ValueError(
+                "Required XML section 'stanzas' is missing."
+            )
+
+        for stanza in stanzas_section.findall(
+            "stanza"
+        ):
+            old_id = int(
+                stanza.attrib["id"]
+            )
+
             old_song_id = int(
                 _get_required_text(
                     stanza,
@@ -729,7 +813,9 @@ def restore_database_from_xml(
                 )
                 RETURNING stanza_id INTO :stanza_id
                 """,
-                song_id=song_map[old_song_id],
+                song_id=song_map[
+                    old_song_id
+                ],
                 stanza_number=int(
                     _get_required_text(
                         stanza,
@@ -739,26 +825,38 @@ def restore_database_from_xml(
                 stanza_id=new_id_var,
             )
 
-            stanza_map[old_id] = new_id_var.getvalue()[0]
+            stanza_map[
+                old_id
+            ] = new_id_var.getvalue()[0]
+
             counts["stanzas"] += 1
 
         # WORDS
-        words_section = root.find("words")
+        words_section = root.find(
+            "words"
+        )
 
-        for word in words_section.findall("word"):
-            old_id = int(word.attrib["id"])
+        if words_section is None:
+            raise ValueError(
+                "Required XML section 'words' is missing."
+            )
+
+        for word in words_section.findall(
+            "word"
+        ):
+            old_id = int(
+                word.attrib["id"]
+            )
 
             new_id_var = cursor.var(int)
 
             cursor.execute(
                 """
                 INSERT INTO words (
-                    text,
-                    word_length
+                    text
                 )
                 VALUES (
-                    :text,
-                    :word_length
+                    :text
                 )
                 RETURNING word_id INTO :word_id
                 """,
@@ -766,22 +864,25 @@ def restore_database_from_xml(
                     word,
                     "text",
                 ),
-                word_length=int(
-                    _get_required_text(
-                        word,
-                        "word_length",
-                    )
-                ),
                 word_id=new_id_var,
             )
 
-            word_map[old_id] = new_id_var.getvalue()[0]
+            word_map[
+                old_id
+            ] = new_id_var.getvalue()[0]
+
             counts["words"] += 1
 
         # WORD OCCURRENCES
         occurrences_section = root.find(
             "word_occurrences"
         )
+
+        if occurrences_section is None:
+            raise ValueError(
+                "Required XML section "
+                "'word_occurrences' is missing."
+            )
 
         for occurrence in occurrences_section.findall(
             "occurrence"
@@ -837,9 +938,15 @@ def restore_database_from_xml(
                 )
                 RETURNING occurrence_id INTO :occurrence_id
                 """,
-                word_id=word_map[old_word_id],
-                song_id=song_map[old_song_id],
-                stanza_id=stanza_map[old_stanza_id],
+                word_id=word_map[
+                    old_word_id
+                ],
+                song_id=song_map[
+                    old_song_id
+                ],
+                stanza_id=stanza_map[
+                    old_stanza_id
+                ],
                 global_line_number=int(
                     _get_required_text(
                         occurrence,
@@ -875,15 +982,27 @@ def restore_database_from_xml(
                 old_occurrence_id
             ] = new_id_var.getvalue()[0]
 
-            counts["word_occurrences"] += 1
+            counts[
+                "word_occurrences"
+            ] += 1
 
         # WORD GROUPS
         groups_section = root.find(
             "word_groups"
         )
 
-        for group in groups_section.findall("group"):
-            old_id = int(group.attrib["id"])
+        if groups_section is None:
+            raise ValueError(
+                "Required XML section "
+                "'word_groups' is missing."
+            )
+
+        for group in groups_section.findall(
+            "group"
+        ):
+            old_id = int(
+                group.attrib["id"]
+            )
 
             new_id_var = cursor.var(int)
 
@@ -920,13 +1039,22 @@ def restore_database_from_xml(
                 group_id=new_id_var,
             )
 
-            group_map[old_id] = new_id_var.getvalue()[0]
+            group_map[
+                old_id
+            ] = new_id_var.getvalue()[0]
+
             counts["word_groups"] += 1
 
         # GROUP WORDS
         group_words_section = root.find(
             "group_words"
         )
+
+        if group_words_section is None:
+            raise ValueError(
+                "Required XML section "
+                "'group_words' is missing."
+            )
 
         for relation in group_words_section.findall(
             "group_word"
@@ -956,17 +1084,32 @@ def restore_database_from_xml(
                     :word_id
                 )
                 """,
-                group_id=group_map[old_group_id],
-                word_id=word_map[old_word_id],
+                group_id=group_map[
+                    old_group_id
+                ],
+                word_id=word_map[
+                    old_word_id
+                ],
             )
 
             counts["group_words"] += 1
 
         # PHRASES
-        phrases_section = root.find("phrases")
+        phrases_section = root.find(
+            "phrases"
+        )
 
-        for phrase in phrases_section.findall("phrase"):
-            old_id = int(phrase.attrib["id"])
+        if phrases_section is None:
+            raise ValueError(
+                "Required XML section 'phrases' is missing."
+            )
+
+        for phrase in phrases_section.findall(
+            "phrase"
+        ):
+            old_id = int(
+                phrase.attrib["id"]
+            )
 
             new_id_var = cursor.var(int)
 
@@ -1003,13 +1146,22 @@ def restore_database_from_xml(
                 phrase_id=new_id_var,
             )
 
-            phrase_map[old_id] = new_id_var.getvalue()[0]
+            phrase_map[
+                old_id
+            ] = new_id_var.getvalue()[0]
+
             counts["phrases"] += 1
 
         # PHRASE OCCURRENCES
         phrase_occurrences_section = root.find(
             "phrase_occurrences"
         )
+
+        if phrase_occurrences_section is None:
+            raise ValueError(
+                "Required XML section "
+                "'phrase_occurrences' is missing."
+            )
 
         for occurrence in phrase_occurrences_section.findall(
             "phrase_occurrence"
@@ -1057,8 +1209,12 @@ def restore_database_from_xml(
                     :end_occurrence_id
                 )
                 """,
-                phrase_id=phrase_map[old_phrase_id],
-                song_id=song_map[old_song_id],
+                phrase_id=phrase_map[
+                    old_phrase_id
+                ],
+                song_id=song_map[
+                    old_song_id
+                ],
                 start_occurrence_id=occurrence_map[
                     old_start_id
                 ],
@@ -1067,12 +1223,15 @@ def restore_database_from_xml(
                 ],
             )
 
-            counts["phrase_occurrences"] += 1
+            counts[
+                "phrase_occurrences"
+            ] += 1
 
         connection.commit()
 
         logger.info(
-            "Database restoration completed successfully: %s",
+            "Database restoration completed "
+            "successfully: %s",
             counts,
         )
 

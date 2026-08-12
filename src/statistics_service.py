@@ -17,6 +17,9 @@ def get_database_summary() -> dict[str, int | float]:
     - Average word length across all word occurrences.
     - Average number of words per line.
 
+    Word length is calculated dynamically using the WORDS.text column
+    and is not stored separately in the database.
+
     Returns:
         A dictionary containing the calculated statistics.
 
@@ -34,20 +37,35 @@ def get_database_summary() -> dict[str, int | float]:
             """
             SELECT
                 (SELECT COUNT(*) FROM songs) AS song_count,
-                (SELECT COUNT(*) FROM word_occurrences) AS total_words,
-                (SELECT COUNT(*) FROM words) AS unique_words,
                 (
-                    SELECT ROUND(AVG(w.word_length), 2)
+                    SELECT COUNT(*)
+                    FROM word_occurrences
+                ) AS total_words,
+                (
+                    SELECT COUNT(*)
+                    FROM words
+                ) AS unique_words,
+                (
+                    SELECT ROUND(
+                        AVG(LENGTH(w.text)),
+                        2
+                    )
                     FROM word_occurrences wo
                     JOIN words w
                         ON wo.word_id = w.word_id
                 ) AS average_word_length,
                 (
-                    SELECT ROUND(AVG(words_per_line), 2)
+                    SELECT ROUND(
+                        AVG(words_per_line),
+                        2
+                    )
                     FROM (
-                        SELECT COUNT(*) AS words_per_line
+                        SELECT
+                            COUNT(*) AS words_per_line
                         FROM word_occurrences
-                        GROUP BY song_id, global_line_number
+                        GROUP BY
+                            song_id,
+                            global_line_number
                     )
                 ) AS average_words_per_line
             FROM dual
@@ -72,23 +90,30 @@ def get_database_summary() -> dict[str, int | float]:
         return result
 
     except Exception:
-        logger.exception("Failed to fetch database summary")
+        logger.exception(
+            "Failed to fetch database summary"
+        )
         raise
 
     finally:
         connection.close()
 
 
-def get_song_statistics(song_id: int) -> Optional[dict[str, int | float | str]]:
+def get_song_statistics(
+    song_id: int,
+) -> Optional[dict[str, int | float | str]]:
     """
     Returns statistics for a specific song.
+
+    Word length is calculated dynamically using the WORDS.text column
+    and is not stored separately in the database.
 
     Args:
         song_id: The database ID of the song.
 
     Returns:
-        A dictionary containing the song statistics, or None if the
-        song does not exist.
+        A dictionary containing the song statistics,
+        or None if the song does not exist.
 
     Raises:
         Exception: If the database query fails.
@@ -107,11 +132,22 @@ def get_song_statistics(song_id: int) -> Optional[dict[str, int | float | str]]:
             """
             SELECT
                 s.title,
-                COUNT(DISTINCT wo.stanza_id) AS stanza_count,
-                COUNT(DISTINCT wo.global_line_number) AS line_count,
-                COUNT(wo.occurrence_id) AS word_count,
-                COUNT(DISTINCT wo.word_id) AS unique_word_count,
-                ROUND(AVG(w.word_length), 2) AS average_word_length
+                COUNT(
+                    DISTINCT wo.stanza_id
+                ) AS stanza_count,
+                COUNT(
+                    DISTINCT wo.global_line_number
+                ) AS line_count,
+                COUNT(
+                    wo.occurrence_id
+                ) AS word_count,
+                COUNT(
+                    DISTINCT wo.word_id
+                ) AS unique_word_count,
+                ROUND(
+                    AVG(LENGTH(w.text)),
+                    2
+                ) AS average_word_length
             FROM songs s
             LEFT JOIN word_occurrences wo
                 ON s.song_id = wo.song_id
@@ -144,7 +180,8 @@ def get_song_statistics(song_id: int) -> Optional[dict[str, int | float | str]]:
         }
 
         logger.info(
-            "Statistics for song id %s fetched successfully",
+            "Statistics for song id %s "
+            "fetched successfully",
             song_id,
         )
 
@@ -152,7 +189,8 @@ def get_song_statistics(song_id: int) -> Optional[dict[str, int | float | str]]:
 
     except Exception:
         logger.exception(
-            "Failed to fetch statistics for song id %s",
+            "Failed to fetch statistics "
+            "for song id %s",
             song_id,
         )
         raise
@@ -170,8 +208,8 @@ def get_most_frequent_words(
 
     Args:
         limit: Maximum number of words to return.
-        song_id: Optional song ID. If provided, statistics are
-            calculated only for that song.
+        song_id: Optional song ID. If provided,
+            statistics are calculated only for that song.
 
     Returns:
         A list of tuples in the format:
@@ -189,12 +227,19 @@ def get_most_frequent_words(
             "Invalid frequency result limit: %s",
             limit,
         )
-        raise ValueError("Limit must be greater than zero")
+
+        raise ValueError(
+            "Limit must be greater than zero"
+        )
 
     logger.info(
         "Fetching %s most frequent words%s",
         limit,
-        f" for song id {song_id}" if song_id is not None else "",
+        (
+            f" for song id {song_id}"
+            if song_id is not None
+            else ""
+        ),
     )
 
     connection = get_connection()
@@ -205,7 +250,9 @@ def get_most_frequent_words(
         if song_id is None:
             cursor.execute(
                 """
-                SELECT word_text, occurrence_count
+                SELECT
+                    word_text,
+                    occurrence_count
                 FROM (
                     SELECT
                         w.text AS word_text,
@@ -226,7 +273,9 @@ def get_most_frequent_words(
         else:
             cursor.execute(
                 """
-                SELECT word_text, occurrence_count
+                SELECT
+                    word_text,
+                    occurrence_count
                 FROM (
                     SELECT
                         w.text AS word_text,
@@ -256,7 +305,9 @@ def get_most_frequent_words(
         return result
 
     except Exception:
-        logger.exception("Failed to fetch most frequent words")
+        logger.exception(
+            "Failed to fetch most frequent words"
+        )
         raise
 
     finally:
@@ -272,15 +323,15 @@ def get_rarest_words(
 
     Args:
         limit: Maximum number of words to return.
-        song_id: Optional song ID. If provided, statistics are
-            calculated only for that song.
+        song_id: Optional song ID. If provided,
+            statistics are calculated only for that song.
 
     Returns:
-        A list of tuples containing:
-        (
-            word,
-            occurrence_count
-        )
+        A list of tuples in the format:
+        [
+            (word, occurrence_count),
+            ...
+        ]
 
     Raises:
         ValueError: If limit is not positive.
@@ -291,12 +342,19 @@ def get_rarest_words(
             "Invalid rare-word result limit: %s",
             limit,
         )
-        raise ValueError("Limit must be greater than zero")
+
+        raise ValueError(
+            "Limit must be greater than zero"
+        )
 
     logger.info(
         "Fetching %s rarest words%s",
         limit,
-        f" for song id {song_id}" if song_id is not None else "",
+        (
+            f" for song id {song_id}"
+            if song_id is not None
+            else ""
+        ),
     )
 
     connection = get_connection()
@@ -307,7 +365,9 @@ def get_rarest_words(
         if song_id is None:
             cursor.execute(
                 """
-                SELECT word_text, occurrence_count
+                SELECT
+                    word_text,
+                    occurrence_count
                 FROM (
                     SELECT
                         w.text AS word_text,
@@ -328,7 +388,9 @@ def get_rarest_words(
         else:
             cursor.execute(
                 """
-                SELECT word_text, occurrence_count
+                SELECT
+                    word_text,
+                    occurrence_count
                 FROM (
                     SELECT
                         w.text AS word_text,
@@ -358,7 +420,9 @@ def get_rarest_words(
         return result
 
     except Exception:
-        logger.exception("Failed to fetch rarest words")
+        logger.exception(
+            "Failed to fetch rarest words"
+        )
         raise
 
     finally:
@@ -371,9 +435,11 @@ def get_word_length_distribution(
     """
     Returns the distribution of word lengths.
 
+    Word length is calculated dynamically using LENGTH(words.text).
+
     Args:
-        song_id: Optional song ID. If provided, the distribution is
-            calculated only for that song.
+        song_id: Optional song ID. If provided,
+            the distribution is calculated only for that song.
 
     Returns:
         A list of tuples in the format:
@@ -387,7 +453,11 @@ def get_word_length_distribution(
     """
     logger.info(
         "Fetching word length distribution%s",
-        f" for song id {song_id}" if song_id is not None else "",
+        (
+            f" for song id {song_id}"
+            if song_id is not None
+            else ""
+        ),
     )
 
     connection = get_connection()
@@ -399,13 +469,15 @@ def get_word_length_distribution(
             cursor.execute(
                 """
                 SELECT
-                    w.word_length,
+                    LENGTH(w.text) AS word_length,
                     COUNT(*) AS occurrence_count
                 FROM words w
                 JOIN word_occurrences wo
                     ON w.word_id = wo.word_id
-                GROUP BY w.word_length
-                ORDER BY w.word_length
+                GROUP BY
+                    LENGTH(w.text)
+                ORDER BY
+                    LENGTH(w.text)
                 """
             )
 
@@ -413,14 +485,16 @@ def get_word_length_distribution(
             cursor.execute(
                 """
                 SELECT
-                    w.word_length,
+                    LENGTH(w.text) AS word_length,
                     COUNT(*) AS occurrence_count
                 FROM words w
                 JOIN word_occurrences wo
                     ON w.word_id = wo.word_id
                 WHERE wo.song_id = :song_id
-                GROUP BY w.word_length
-                ORDER BY w.word_length
+                GROUP BY
+                    LENGTH(w.text)
+                ORDER BY
+                    LENGTH(w.text)
                 """,
                 song_id=song_id,
             )
@@ -428,7 +502,8 @@ def get_word_length_distribution(
         result = cursor.fetchall()
 
         logger.info(
-            "Fetched word length distribution with %s different lengths",
+            "Fetched word length distribution "
+            "with %s different lengths",
             len(result),
         )
 
@@ -464,7 +539,8 @@ def get_words_per_stanza(
         Exception: If the database query fails.
     """
     logger.info(
-        "Fetching word count per stanza for song id %s",
+        "Fetching word count per stanza "
+        "for song id %s",
         song_id,
     )
 
@@ -477,7 +553,9 @@ def get_words_per_stanza(
             """
             SELECT
                 st.stanza_number,
-                COUNT(wo.occurrence_id) AS word_count
+                COUNT(
+                    wo.occurrence_id
+                ) AS word_count
             FROM stanzas st
             LEFT JOIN word_occurrences wo
                 ON st.stanza_id = wo.stanza_id
@@ -485,7 +563,8 @@ def get_words_per_stanza(
             GROUP BY
                 st.stanza_id,
                 st.stanza_number
-            ORDER BY st.stanza_number
+            ORDER BY
+                st.stanza_number
             """,
             song_id=song_id,
         )
@@ -493,7 +572,8 @@ def get_words_per_stanza(
         result = cursor.fetchall()
 
         logger.info(
-            "Fetched statistics for %s stanzas in song id %s",
+            "Fetched statistics for %s stanzas "
+            "in song id %s",
             len(result),
             song_id,
         )
@@ -502,7 +582,8 @@ def get_words_per_stanza(
 
     except Exception:
         logger.exception(
-            "Failed to fetch word count per stanza for song id %s",
+            "Failed to fetch word count per stanza "
+            "for song id %s",
             song_id,
         )
         raise

@@ -1,11 +1,44 @@
 import logging
+from typing import Any
 
 from src.db import get_connection
 
 logger = logging.getLogger(__name__)
 
 
-def create_group(group_name, description=None):
+def create_group(
+    group_name: str,
+    description: str | None = None,
+) -> int:
+    """
+    Creates a new word group.
+
+    Args:
+        group_name: The name of the group.
+        description: Optional description of the group.
+
+    Returns:
+        The ID of the newly created group.
+
+    Raises:
+        ValueError: If the group name is empty.
+        Exception: If the database operation fails.
+    """
+    group_name = group_name.strip()
+
+    if not group_name:
+        logger.warning(
+            "Attempted to create a group with an empty name"
+        )
+        raise ValueError(
+            "Group name cannot be empty"
+        )
+
+    logger.info(
+        "Creating word group '%s'",
+        group_name,
+    )
+
     connection = get_connection()
 
     try:
@@ -44,13 +77,43 @@ def create_group(group_name, description=None):
 
     except Exception:
         connection.rollback()
-        logger.exception("Failed to create group '%s'", group_name)
+
+        logger.exception(
+            "Failed to create group '%s'",
+            group_name,
+        )
         raise
 
     finally:
         connection.close()
 
-def add_word_to_group(group_id, word):
+
+def add_word_to_group(
+    group_id: int,
+    word: str,
+) -> None:
+    """
+    Adds an existing word to a word group.
+
+    Args:
+        group_id: The ID of the target group.
+        word: The word to add.
+
+    Returns:
+        None.
+
+    Raises:
+        ValueError: If the word does not exist in the database.
+        Exception: If the database operation fails.
+    """
+    word = word.strip().lower()
+
+    logger.info(
+        "Adding word '%s' to group id %s",
+        word,
+        group_id,
+    )
+
     connection = get_connection()
 
     try:
@@ -60,7 +123,7 @@ def add_word_to_group(group_id, word):
             """
             SELECT word_id
             FROM words
-            WHERE text = LOWER(:word)
+            WHERE text = :word
             """,
             word=word,
         )
@@ -68,7 +131,14 @@ def add_word_to_group(group_id, word):
         row = cursor.fetchone()
 
         if row is None:
-            raise ValueError(f"Word '{word}' does not exist in database")
+            logger.warning(
+                "Word '%s' does not exist in the database",
+                word,
+            )
+
+            raise ValueError(
+                f"Word '{word}' does not exist in database"
+            )
 
         word_id = row[0]
 
@@ -90,15 +160,16 @@ def add_word_to_group(group_id, word):
         connection.commit()
 
         logger.info(
-            "Added word '%s' to group %s",
+            "Added word '%s' to group id %s",
             word,
             group_id,
         )
 
     except Exception:
         connection.rollback()
+
         logger.exception(
-            "Failed to add word '%s' to group %s",
+            "Failed to add word '%s' to group id %s",
             word,
             group_id,
         )
@@ -107,7 +178,32 @@ def add_word_to_group(group_id, word):
     finally:
         connection.close()
 
-def remove_word_from_group(group_id, word):
+
+def remove_word_from_group(
+    group_id: int,
+    word: str,
+) -> bool:
+    """
+    Removes a word from a word group.
+
+    Args:
+        group_id: The ID of the group.
+        word: The word to remove.
+
+    Returns:
+        True if the word was removed, False otherwise.
+
+    Raises:
+        Exception: If the database operation fails.
+    """
+    word = word.strip().lower()
+
+    logger.info(
+        "Removing word '%s' from group id %s",
+        word,
+        group_id,
+    )
+
     connection = get_connection()
 
     try:
@@ -120,21 +216,38 @@ def remove_word_from_group(group_id, word):
               AND word_id = (
                     SELECT word_id
                     FROM words
-                    WHERE text = LOWER(:word)
+                    WHERE text = :word
               )
             """,
             group_id=group_id,
             word=word,
         )
 
+        removed = cursor.rowcount > 0
+
         connection.commit()
 
-        return cursor.rowcount > 0
+        if removed:
+            logger.info(
+                "Removed word '%s' from group id %s",
+                word,
+                group_id,
+            )
+
+        else:
+            logger.warning(
+                "Word '%s' was not found in group id %s",
+                word,
+                group_id,
+            )
+
+        return removed
 
     except Exception:
         connection.rollback()
+
         logger.exception(
-            "Failed to remove word '%s' from group %s",
+            "Failed to remove word '%s' from group id %s",
             word,
             group_id,
         )
@@ -143,7 +256,31 @@ def remove_word_from_group(group_id, word):
     finally:
         connection.close()
 
-def get_group_words(group_id):
+
+def get_group_words(
+    group_id: int,
+) -> list[tuple[int, str]]:
+    """
+    Returns all words assigned to a word group.
+
+    Args:
+        group_id: The ID of the group.
+
+    Returns:
+        A list of tuples in the format:
+        [
+            (word_id, word_text),
+            ...
+        ]
+
+    Raises:
+        Exception: If the database query fails.
+    """
+    logger.info(
+        "Fetching words for group id %s",
+        group_id,
+    )
+
     connection = get_connection()
 
     try:
@@ -153,8 +290,7 @@ def get_group_words(group_id):
             """
             SELECT
                 w.word_id,
-                w.text,
-                w.word_length
+                w.text
             FROM group_words gw
             JOIN words w
                 ON gw.word_id = w.word_id
@@ -164,12 +300,41 @@ def get_group_words(group_id):
             group_id=group_id,
         )
 
-        return cursor.fetchall()
+        result = cursor.fetchall()
+
+        logger.info(
+            "Fetched %s words for group id %s",
+            len(result),
+            group_id,
+        )
+
+        return result
+
+    except Exception:
+        logger.exception(
+            "Failed to fetch words for group id %s",
+            group_id,
+        )
+        raise
 
     finally:
         connection.close()
 
-def get_groups():
+
+def get_groups() -> list[tuple[Any, ...]]:
+    """
+    Returns all word groups.
+
+    Returns:
+        A list containing the stored word groups.
+
+    Raises:
+        Exception: If the database query fails.
+    """
+    logger.info(
+        "Fetching all word groups"
+    )
+
     connection = get_connection()
 
     try:
@@ -187,12 +352,45 @@ def get_groups():
             """
         )
 
-        return cursor.fetchall()
+        result = cursor.fetchall()
+
+        logger.info(
+            "Fetched %s word groups",
+            len(result),
+        )
+
+        return result
+
+    except Exception:
+        logger.exception(
+            "Failed to fetch word groups"
+        )
+        raise
 
     finally:
         connection.close()
 
-def get_group_occurrences(group_id):
+
+def get_group_occurrences(
+    group_id: int,
+) -> list[tuple[Any, ...]]:
+    """
+    Returns all occurrences of words belonging to a word group.
+
+    Args:
+        group_id: The ID of the group.
+
+    Returns:
+        A list containing occurrences of the group's words.
+
+    Raises:
+        Exception: If the database query fails.
+    """
+    logger.info(
+        "Fetching occurrences for group id %s",
+        group_id,
+    )
+
     connection = get_connection()
 
     try:
@@ -227,7 +425,22 @@ def get_group_occurrences(group_id):
             group_id=group_id,
         )
 
-        return cursor.fetchall()
+        result = cursor.fetchall()
+
+        logger.info(
+            "Fetched %s occurrences for group id %s",
+            len(result),
+            group_id,
+        )
+
+        return result
+
+    except Exception:
+        logger.exception(
+            "Failed to fetch occurrences for group id %s",
+            group_id,
+        )
+        raise
 
     finally:
         connection.close()
@@ -253,12 +466,17 @@ def update_group(
         ValueError: If the group name is empty.
         Exception: If the database operation fails.
     """
-    if not group_name.strip():
+    group_name = group_name.strip()
+
+    if not group_name:
         logger.warning(
             "Attempted to update group id %s with an empty name",
             group_id,
         )
-        raise ValueError("Group name cannot be empty")
+
+        raise ValueError(
+            "Group name cannot be empty"
+        )
 
     logger.info(
         "Updating group id %s to name '%s'",
@@ -274,7 +492,8 @@ def update_group(
         cursor.execute(
             """
             UPDATE word_groups
-            SET group_name = :group_name,
+            SET
+                group_name = :group_name,
                 description = :description
             WHERE group_id = :group_id
             """,
@@ -292,6 +511,7 @@ def update_group(
                 "Group id %s updated successfully",
                 group_id,
             )
+
         else:
             logger.warning(
                 "Group id %s was not found",
@@ -302,6 +522,7 @@ def update_group(
 
     except Exception:
         connection.rollback()
+
         logger.exception(
             "Failed to update group id %s",
             group_id,
@@ -312,7 +533,9 @@ def update_group(
         connection.close()
 
 
-def delete_group(group_id: int) -> bool:
+def delete_group(
+    group_id: int,
+) -> bool:
     """
     Deletes a word group.
 
@@ -355,6 +578,7 @@ def delete_group(group_id: int) -> bool:
                 "Group id %s deleted successfully",
                 group_id,
             )
+
         else:
             logger.warning(
                 "Group id %s was not found",
@@ -365,6 +589,7 @@ def delete_group(group_id: int) -> bool:
 
     except Exception:
         connection.rollback()
+
         logger.exception(
             "Failed to delete group id %s",
             group_id,

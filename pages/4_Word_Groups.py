@@ -292,7 +292,9 @@ def render_group_words(
     st.subheader("Words in Group")
 
     try:
-        words = get_group_words(group_id)
+        words = get_group_words(
+            group_id
+        )
 
     except Exception:
         logger.exception(
@@ -310,12 +312,10 @@ def render_group_words(
             {
                 "Word ID": word_id,
                 "Word": text,
-                "Length": word_length,
             }
             for (
                 word_id,
                 text,
-                word_length,
             ) in words
         ]
 
@@ -353,7 +353,9 @@ def render_group_words(
                 group_id,
             )
 
-            st.error("Please enter a word.")
+            st.error(
+                "Please enter a word."
+            )
 
         else:
             try:
@@ -393,13 +395,14 @@ def render_group_words(
             for (
                 word_id,
                 text,
-                word_length,
             ) in words
         }
 
         selected_word = st.selectbox(
             "Select Word",
-            options=list(word_options.keys()),
+            options=list(
+                word_options.keys()
+            ),
             key=f"remove_word_select_{group_id}",
         )
 

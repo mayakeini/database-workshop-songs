@@ -379,7 +379,7 @@ ORACLE_HOST=localhost
 ORACLE_PORT=1521
 ORACLE_SERVICE=FREEPDB1
 ORACLE_USER=concordance
-ORACLE_PASSWORD=your_password
+ORACLE_PASSWORD=songsproject
 
 The `.env` file must not be committed to Git.
 

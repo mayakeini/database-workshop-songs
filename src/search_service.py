@@ -26,7 +26,10 @@ def search_songs(title=None, artist=None, album=None, publication_year=None):
                 artist,
                 album,
                 publication_year,
-                upload_date
+                TO_CHAR(
+                    upload_date,
+                    'YYYY-MM-DD HH24:MI:SS TZH:TZM'
+                ) AS upload_date
             FROM songs
             WHERE 1 = 1
         """

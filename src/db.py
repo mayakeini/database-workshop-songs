@@ -28,7 +28,7 @@ def get_connection():
 
     with connection.cursor() as cursor:
         cursor.execute(
-            "ALTER SESSION SET TIME_ZONE = 'Asia/Jerusalem'"
+            "ALTER SESSION SET TIME_ZONE = '+03:00'"
         )
 
     logger.info("Connected to Oracle successfully")

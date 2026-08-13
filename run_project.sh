@@ -6,11 +6,11 @@ CONTAINER_NAME="oracle-free"
 ORACLE_IMAGE="gvenzl/oracle-free:23-slim"
 ORACLE_VOLUME="oracle-free-data"
 
-ORACLE_PASSWORD="your_password"
+ORACLE_PASSWORD="songsproject"
 ORACLE_SERVICE="FREEPDB1"
 
 APP_USER="concordance"
-APP_PASSWORD="your_password"
+APP_PASSWORD="songsproject"
 
 echo "========================================"
 echo " Songs Concordance Project Setup"
@@ -46,9 +46,13 @@ oracle_user_exists() {
 
     result=$(
         printf "%s\n" \
-            "ALTER SESSION SET CONTAINER=${ORACLE_SERVICE};" \
             "SET HEADING OFF FEEDBACK OFF PAGESIZE 0 VERIFY OFF ECHO OFF;" \
-            "SELECT COUNT(*) FROM dba_users WHERE username = UPPER('${APP_USER}');" \
+            "ALTER SESSION SET CONTAINER=${ORACLE_SERVICE};" \
+            "SELECT COUNT(*) FROM (" \
+            "    SELECT username AS name FROM dba_users WHERE username = UPPER('${APP_USER}')" \
+            "    UNION ALL" \
+            "    SELECT role AS name FROM dba_roles WHERE role = UPPER('${APP_USER}')" \
+            ");" \
             "EXIT;" \
         | docker exec -i "$CONTAINER_NAME" \
             /bin/bash -lc \
@@ -84,18 +88,37 @@ create_app_user() {
 
 
 drop_app_user() {
-    echo "Removing existing Oracle user '${APP_USER}'..."
+    echo "Removing existing Oracle user or role '${APP_USER}'..."
 
     printf "%s\n" \
         "WHENEVER SQLERROR EXIT SQL.SQLCODE;" \
         "ALTER SESSION SET CONTAINER=${ORACLE_SERVICE};" \
-        "DROP USER ${APP_USER} CASCADE;" \
+        "DECLARE" \
+        "  object_count NUMBER;" \
+        "BEGIN" \
+        "  SELECT COUNT(*) INTO object_count" \
+        "  FROM dba_users" \
+        "  WHERE username = UPPER('${APP_USER}');" \
+        "" \
+        "  IF object_count > 0 THEN" \
+        "    EXECUTE IMMEDIATE 'DROP USER ${APP_USER} CASCADE';" \
+        "  END IF;" \
+        "" \
+        "  SELECT COUNT(*) INTO object_count" \
+        "  FROM dba_roles" \
+        "  WHERE role = UPPER('${APP_USER}');" \
+        "" \
+        "  IF object_count > 0 THEN" \
+        "    EXECUTE IMMEDIATE 'DROP ROLE ${APP_USER}';" \
+        "  END IF;" \
+        "END;" \
+        "/" \
         "EXIT;" \
     | docker exec -i "$CONTAINER_NAME" \
         /bin/bash -lc \
         'sqlplus -s / as sysdba'
 
-    echo "Existing Oracle schema removed."
+    echo "Existing Oracle schema or role removed."
 }
 
 

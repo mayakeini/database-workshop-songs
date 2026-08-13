@@ -59,6 +59,9 @@ def render_create_group() -> None:
     """
     Renders the interface for creating a new word group.
 
+    Displays a persistent success message after creation and resets
+    the form fields after a group is created successfully.
+
     Returns:
         None.
     """
@@ -66,19 +69,34 @@ def render_create_group() -> None:
 
     st.subheader("Create Group")
 
-    with st.form("create_group_form"):
+    success_message = st.session_state.pop(
+        "create_group_success_message",
+        None,
+    )
+
+    if success_message:
+        st.success(success_message)
+
+    if "create_group_form_version" not in st.session_state:
+        st.session_state["create_group_form_version"] = 0
+
+    form_version = st.session_state["create_group_form_version"]
+
+    with st.form(
+        f"create_group_form_{form_version}",
+    ):
         group_name = st.text_input(
             "Group Name *",
-            key="new_group_name",
+            key=f"new_group_name_{form_version}",
         )
 
         description = st.text_area(
             "Description",
-            key="new_group_description",
+            key=f"new_group_description_{form_version}",
         )
 
         submitted = st.form_submit_button(
-            "Create Group"
+            "Create Group",
         )
 
     if not submitted:
@@ -107,20 +125,32 @@ def render_create_group() -> None:
             group_id,
         )
 
-        st.success(
+        st.session_state["create_group_success_message"] = (
             f"Group '{group_name}' created successfully."
         )
 
+        st.session_state["create_group_form_version"] += 1
+
         st.rerun()
 
-    except Exception as error:
+    except ValueError as error:
+        logger.warning(
+            "Could not create group '%s': %s",
+            group_name,
+            error,
+        )
+
+        st.error(str(error))
+
+    except Exception:
         logger.exception(
-            "Failed to create group '%s'",
+            "Unexpected error while creating group '%s'",
             group_name,
         )
 
         st.error(
-            f"Could not create the group: {error}"
+            "Could not create the group due to an unexpected error. "
+            "Please try again."
         )
 
 

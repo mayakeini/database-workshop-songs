@@ -13,6 +13,8 @@ def create_group(
     """
     Creates a new word group.
 
+    Group names are treated as case-insensitively unique.
+
     Args:
         group_name: The name of the group.
         description: Optional description of the group.
@@ -21,8 +23,8 @@ def create_group(
         The ID of the newly created group.
 
     Raises:
-        ValueError: If the group name is empty.
-        Exception: If the database operation fails.
+        ValueError: If the group name is empty or already exists.
+        Exception: If an unexpected database operation fails.
     """
     group_name = group_name.strip()
 
@@ -31,7 +33,7 @@ def create_group(
             "Attempted to create a group with an empty name"
         )
         raise ValueError(
-            "Group name cannot be empty"
+            "Group name cannot be empty."
         )
 
     logger.info(
@@ -43,6 +45,27 @@ def create_group(
 
     try:
         cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT group_id
+            FROM word_groups
+            WHERE LOWER(group_name) = LOWER(:group_name)
+            """,
+            group_name=group_name,
+        )
+
+        existing_group = cursor.fetchone()
+
+        if existing_group is not None:
+            logger.warning(
+                "Group creation rejected because group '%s' already exists",
+                group_name,
+            )
+
+            raise ValueError(
+                f"A group named '{group_name}' already exists."
+            )
 
         group_id_var = cursor.var(int)
 
@@ -74,6 +97,10 @@ def create_group(
         )
 
         return group_id
+
+    except ValueError:
+        connection.rollback()
+        raise
 
     except Exception:
         connection.rollback()

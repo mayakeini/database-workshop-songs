@@ -153,7 +153,10 @@ def export_database_to_xml() -> bytes:
                 artist,
                 album,
                 publication_year,
-                upload_date
+                TO_CHAR(
+                    upload_date,
+                    'YYYY-MM-DD HH24:MI:SS TZH:TZM'
+                ) AS upload_date
             FROM songs
             ORDER BY song_id
             """
@@ -379,7 +382,10 @@ def export_database_to_xml() -> bytes:
                 group_id,
                 group_name,
                 description,
-                creation_date
+                TO_CHAR(
+                    creation_date,
+                    'YYYY-MM-DD HH24:MI:SS TZH:TZM'
+                ) AS creation_date
             FROM word_groups
             ORDER BY group_id
             """
@@ -466,7 +472,10 @@ def export_database_to_xml() -> bytes:
                 phrase_id,
                 phrase_name,
                 phrase_text,
-                creation_date
+                TO_CHAR(
+                    creation_date,
+                    'YYYY-MM-DD HH24:MI:SS TZH:TZM'
+                ) AS creation_date
             FROM phrases
             ORDER BY phrase_id
             """

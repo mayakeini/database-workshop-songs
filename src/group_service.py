@@ -373,7 +373,10 @@ def get_groups() -> list[tuple[Any, ...]]:
                 group_id,
                 group_name,
                 description,
-                creation_date
+                TO_CHAR(
+                    creation_date,
+                    'YYYY-MM-DD HH24:MI:SS TZH:TZM'
+                ) AS creation_date
             FROM word_groups
             ORDER BY group_name
             """

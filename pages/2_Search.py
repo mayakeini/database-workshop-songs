@@ -18,6 +18,22 @@ setup_logger()
 logger = logging.getLogger(__name__)
 
 
+def format_upload_date(upload_date: Any) -> str:
+    """
+    Formats a stored upload date for display without its timezone.
+
+    Args:
+        upload_date: Upload date returned from Oracle.
+
+    Returns:
+        A display string containing date and time only.
+    """
+    return upload_date.rsplit(
+        " ",
+        maxsplit=1,
+    )[0]
+
+
 def display_song_results(
     results: list[tuple[Any, ...]],
 ) -> None:
@@ -95,7 +111,7 @@ def display_song_results(
                 )
                 st.write(
                     f"**Upload Date:** "
-                    f"{upload_date}"
+                    f"{format_upload_date(upload_date)}"
                 )
                 st.write(
                     f"**Song ID:** {song_id}"

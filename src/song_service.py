@@ -3,6 +3,18 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from src.db import get_connection
+from src.queries.general import (
+    query_insert_word_returning_id,
+    query_select_line_tokens_by_global_number,
+    query_select_word_id_by_text,
+)
+from src.queries.song_service_queries import (
+    query_count_matching_song,
+    query_insert_song_returning_id,
+    query_insert_stanza_returning_id,
+    query_insert_word_occurrence,
+    query_select_song_text_rows,
+)
 from src.text_parser import parse_song
 
 logger = logging.getLogger(__name__)
@@ -38,11 +50,7 @@ def insert_song(
     artist = artist.strip()
     album = album.strip() if album and album.strip() else None
 
-    logger.info(
-        "Starting song insertion: '%s' by '%s'",
-        title,
-        artist,
-    )
+    logger.info(f"Starting song insertion: '{title}' by '{artist}'")
 
     current_year = datetime.now(
         ZoneInfo("Asia/Jerusalem")
@@ -50,9 +58,7 @@ def insert_song(
 
     if publication_year < 1000 or publication_year > current_year:
         logger.warning(
-            "Song insertion rejected due to invalid "
-            "publication year: %s",
-            publication_year,
+            f'Song insertion rejected due to invalid publication year: {publication_year}',
         )
 
         raise ValueError(
@@ -66,10 +72,7 @@ def insert_song(
         album=album,
     ):
         logger.warning(
-            "Song insertion rejected because it already exists: "
-            "'%s' by '%s'",
-            title,
-            artist,
+            f"Song insertion rejected because it already exists: '{title}' by '{artist}'",
         )
 
         raise ValueError(
@@ -82,9 +85,7 @@ def insert_song(
 
     if not occurrences:
         logger.warning(
-            "Song upload rejected because the file "
-            "contains no valid words: %s",
-            file_path,
+            f'Song upload rejected because the file contains no valid words: {file_path}',
         )
 
         raise ValueError(
@@ -103,29 +104,10 @@ def insert_song(
             ZoneInfo("Asia/Jerusalem")
         )
 
-        logger.info(
-            "Using Israel upload time: %s",
-            israel_time,
-        )
+        logger.info(f'Using Israel upload time: {israel_time}')
 
-        cursor.execute(
-            """
-            INSERT INTO songs (
-                title,
-                artist,
-                album,
-                publication_year,
-                upload_date
-            )
-            VALUES (
-                :title,
-                :artist,
-                :album,
-                :publication_year,
-                :upload_date
-            )
-            RETURNING song_id INTO :song_id
-            """,
+        query_insert_song_returning_id(
+            cursor,
             title=title,
             artist=artist,
             album=album,
@@ -136,10 +118,7 @@ def insert_song(
 
         song_id = song_id_var.getvalue()[0]
 
-        logger.info(
-            "Inserted song with id %s",
-            song_id,
-        )
+        logger.info(f'Inserted song with id {song_id}')
 
         stanza_ids: dict[int, int] = {}
 
@@ -153,18 +132,8 @@ def insert_song(
 
             stanza_id_var = cursor.var(int)
 
-            cursor.execute(
-                """
-                INSERT INTO stanzas (
-                    song_id,
-                    stanza_number
-                )
-                VALUES (
-                    :song_id,
-                    :stanza_number
-                )
-                RETURNING stanza_id INTO :stanza_id
-                """,
+            query_insert_stanza_returning_id(
+                cursor,
                 song_id=song_id,
                 stanza_number=stanza_number,
                 stanza_id=stanza_id_var,
@@ -177,11 +146,7 @@ def insert_song(
             ] = stanza_id
 
             logger.debug(
-                "Inserted stanza %s with id %s "
-                "for song id %s",
-                stanza_number,
-                stanza_id,
-                song_id,
+                f'Inserted stanza {stanza_number} with id {stanza_id} for song id {song_id}',
             )
 
         word_ids: dict[str, int] = {}
@@ -192,78 +157,32 @@ def insert_song(
             ]
 
             if word not in word_ids:
-                cursor.execute(
-                    """
-                    SELECT word_id
-                    FROM words
-                    WHERE text = :word
-                    """,
-                    word=word,
-                )
+                query_select_word_id_by_text(cursor, word)
 
                 row = cursor.fetchone()
 
                 if row is not None:
                     word_id = row[0]
 
-                    logger.debug(
-                        "Using existing word '%s' "
-                        "with id %s",
-                        word,
-                        word_id,
-                    )
+                    logger.debug(f"Using existing word '{word}' with id {word_id}")
 
                 else:
                     word_id_var = cursor.var(int)
 
-                    cursor.execute(
-                        """
-                        INSERT INTO words (
-                            text
-                        )
-                        VALUES (
-                            :word
-                        )
-                        RETURNING word_id INTO :word_id
-                        """,
+                    query_insert_word_returning_id(
+                        cursor,
                         word=word,
                         word_id=word_id_var,
                     )
 
                     word_id = word_id_var.getvalue()[0]
 
-                    logger.debug(
-                        "Inserted new word '%s' "
-                        "with id %s",
-                        word,
-                        word_id,
-                    )
+                    logger.debug(f"Inserted new word '{word}' with id {word_id}")
 
                 word_ids[word] = word_id
 
-            cursor.execute(
-                """
-                INSERT INTO word_occurrences (
-                    word_id,
-                    song_id,
-                    stanza_id,
-                    global_line_number,
-                    line_number_in_stanza,
-                    position_in_line,
-                    position_in_song,
-                    original_token
-                )
-                VALUES (
-                    :word_id,
-                    :song_id,
-                    :stanza_id,
-                    :global_line_number,
-                    :line_number_in_stanza,
-                    :position_in_line,
-                    :position_in_song,
-                    :original_token
-                )
-                """,
+            query_insert_word_occurrence(
+                cursor,
                 word_id=word_ids[word],
                 song_id=song_id,
                 stanza_id=stanza_ids[
@@ -289,10 +208,7 @@ def insert_song(
         connection.commit()
 
         logger.info(
-            "Song inserted successfully: '%s' "
-            "(%s occurrences)",
-            title,
-            len(occurrences),
+            f"Song inserted successfully: '{title}' ({len(occurrences)} occurrences)",
         )
 
         return song_id
@@ -300,10 +216,7 @@ def insert_song(
     except Exception:
         connection.rollback()
 
-        logger.exception(
-            "Failed to insert song: '%s'",
-            title,
-        )
+        logger.exception(f"Failed to insert song: '{title}'")
 
         raise
 
@@ -329,27 +242,17 @@ def get_line(
     Raises:
         Exception: If the database query fails.
     """
-    logger.info(
-        "Fetching line %s for song id %s",
-        global_line_number,
-        song_id,
-    )
+    logger.info(f'Fetching line {global_line_number} for song id {song_id}')
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT original_token
-            FROM word_occurrences
-            WHERE song_id = :song_id
-              AND global_line_number = :global_line_number
-            ORDER BY position_in_line
-            """,
-            song_id=song_id,
-            global_line_number=global_line_number,
+        query_select_line_tokens_by_global_number(
+            cursor,
+            song_id,
+            global_line_number,
         )
 
         tokens = [
@@ -360,18 +263,14 @@ def get_line(
         line = " ".join(tokens)
 
         logger.info(
-            "Line %s for song id %s reconstructed successfully",
-            global_line_number,
-            song_id,
+            f'Line {global_line_number} for song id {song_id} reconstructed successfully',
         )
 
         return line
 
     except Exception:
         logger.exception(
-            "Failed to fetch line %s for song id %s",
-            global_line_number,
-            song_id,
+            f'Failed to fetch line {global_line_number} for song id {song_id}',
         )
         raise
 
@@ -397,42 +296,19 @@ def get_song_text(
     Raises:
         Exception: If the database query fails.
     """
-    logger.info(
-        "Fetching complete text for song id %s",
-        song_id,
-    )
+    logger.info(f'Fetching complete text for song id {song_id}')
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                st.stanza_number,
-                wo.global_line_number,
-                wo.position_in_line,
-                wo.original_token
-            FROM word_occurrences wo
-            JOIN stanzas st
-                ON wo.stanza_id = st.stanza_id
-            WHERE wo.song_id = :song_id
-            ORDER BY
-                st.stanza_number,
-                wo.global_line_number,
-                wo.position_in_line
-            """,
-            song_id=song_id,
-        )
+        query_select_song_text_rows(cursor, song_id)
 
         rows = cursor.fetchall()
 
         if not rows:
-            logger.info(
-                "No text found for song id %s",
-                song_id,
-            )
+            logger.info(f'No text found for song id {song_id}')
             return ""
 
         result: list[str] = []
@@ -484,19 +360,12 @@ def get_song_text(
             result
         )
 
-        logger.info(
-            "Complete text for song id %s "
-            "reconstructed successfully",
-            song_id,
-        )
+        logger.info(f'Complete text for song id {song_id} reconstructed successfully')
 
         return song_text
 
     except Exception:
-        logger.exception(
-            "Failed to reconstruct text for song id %s",
-            song_id,
-        )
+        logger.exception(f'Failed to reconstruct text for song id {song_id}')
         raise
 
     finally:
@@ -526,11 +395,7 @@ def song_exists(
         Exception: If the database query fails.
     """
     logger.info(
-        "Checking whether song already exists: "
-        "title='%s', artist='%s', album='%s'",
-        title,
-        artist,
-        album,
+        f"Checking whether song already exists: title='{title}', artist='{artist}', album='{album}'",
     )
 
     connection = get_connection()
@@ -538,17 +403,8 @@ def song_exists(
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT COUNT(*)
-            FROM songs
-            WHERE LOWER(title) = LOWER(:title)
-              AND LOWER(artist) = LOWER(:artist)
-              AND (
-                    (album IS NULL AND :album IS NULL)
-                    OR LOWER(album) = LOWER(:album)
-                  )
-            """,
+        query_count_matching_song(
+            cursor,
             title=title,
             artist=artist,
             album=album,
@@ -558,18 +414,12 @@ def song_exists(
 
         exists = count > 0
 
-        logger.info(
-            "Song existence check completed. Exists=%s",
-            exists,
-        )
+        logger.info(f'Song existence check completed. Exists={exists}')
 
         return exists
 
     except Exception:
-        logger.exception(
-            "Failed to check whether song '%s' already exists",
-            title,
-        )
+        logger.exception(f"Failed to check whether song '{title}' already exists")
         raise
 
     finally:

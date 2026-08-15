@@ -32,10 +32,7 @@ def build_group_options(
     Returns:
         A dictionary mapping a display label to a group ID.
     """
-    logger.info(
-        "Building group selection options from %s groups",
-        len(groups),
-    )
+    logger.info(f'Building group selection options from {len(groups)} groups')
 
     options = {
         group_name: group_id
@@ -47,10 +44,7 @@ def build_group_options(
         ) in groups
     }
 
-    logger.info(
-        "Built %s group selection options",
-        len(options),
-    )
+    logger.info(f'Built {len(options)} group selection options')
 
     return options
 
@@ -119,11 +113,7 @@ def render_create_group() -> None:
             description=description or None,
         )
 
-        logger.info(
-            "Group '%s' created successfully with id %s",
-            group_name,
-            group_id,
-        )
+        logger.info(f"Group '{group_name}' created successfully with id {group_id}")
 
         st.session_state["create_group_success_message"] = (
             f"Group '{group_name}' created successfully."
@@ -134,19 +124,12 @@ def render_create_group() -> None:
         st.rerun()
 
     except ValueError as error:
-        logger.warning(
-            "Could not create group '%s': %s",
-            group_name,
-            error,
-        )
+        logger.warning(f"Could not create group '{group_name}': {error}")
 
         st.error(str(error))
 
     except Exception:
-        logger.exception(
-            "Unexpected error while creating group '%s'",
-            group_name,
-        )
+        logger.exception(f"Unexpected error while creating group '{group_name}'")
 
         st.error(
             "Could not create the group due to an unexpected error. "
@@ -170,10 +153,7 @@ def render_group_editor(
     Returns:
         None.
     """
-    logger.info(
-        "Rendering editor for group id %s",
-        group_id,
-    )
+    logger.info(f'Rendering editor for group id {group_id}')
 
     st.subheader("Edit Group")
 
@@ -201,10 +181,7 @@ def render_group_editor(
         updated_description = updated_description.strip()
 
         if not updated_name:
-            logger.warning(
-                "Group update rejected for id %s: empty name",
-                group_id,
-            )
+            logger.warning(f'Group update rejected for id {group_id}: empty name')
 
             st.error("Group name is required.")
 
@@ -217,10 +194,7 @@ def render_group_editor(
                 )
 
                 if updated:
-                    logger.info(
-                        "Group id %s updated successfully",
-                        group_id,
-                    )
+                    logger.info(f'Group id {group_id} updated successfully')
 
                     st.success(
                         "Group updated successfully."
@@ -229,20 +203,14 @@ def render_group_editor(
                     st.rerun()
 
                 else:
-                    logger.warning(
-                        "Group id %s was not found during update",
-                        group_id,
-                    )
+                    logger.warning(f'Group id {group_id} was not found during update')
 
                     st.warning(
                         "The selected group no longer exists."
                     )
 
             except Exception as error:
-                logger.exception(
-                    "Failed to update group id %s",
-                    group_id,
-                )
+                logger.exception(f'Failed to update group id {group_id}')
 
                 st.error(
                     f"Could not update the group: {error}"
@@ -269,10 +237,7 @@ def render_group_editor(
             deleted = delete_group(group_id)
 
             if deleted:
-                logger.info(
-                    "Group id %s deleted successfully",
-                    group_id,
-                )
+                logger.info(f'Group id {group_id} deleted successfully')
 
                 st.success(
                     "Group deleted successfully."
@@ -281,20 +246,14 @@ def render_group_editor(
                 st.rerun()
 
             else:
-                logger.warning(
-                    "Group id %s was not found during deletion",
-                    group_id,
-                )
+                logger.warning(f'Group id {group_id} was not found during deletion')
 
                 st.warning(
                     "The selected group no longer exists."
                 )
 
         except Exception as error:
-            logger.exception(
-                "Failed to delete group id %s",
-                group_id,
-            )
+            logger.exception(f'Failed to delete group id {group_id}')
 
             st.error(
                 f"Could not delete the group: {error}"
@@ -314,10 +273,7 @@ def render_group_words(
     Returns:
         None.
     """
-    logger.info(
-        "Rendering words for group id %s",
-        group_id,
-    )
+    logger.info(f'Rendering words for group id {group_id}')
 
     st.subheader("Words in Group")
 
@@ -327,10 +283,7 @@ def render_group_words(
         )
 
     except Exception:
-        logger.exception(
-            "Failed to fetch words for group id %s",
-            group_id,
-        )
+        logger.exception(f'Failed to fetch words for group id {group_id}')
 
         st.error(
             "Could not load the group's words."
@@ -378,10 +331,7 @@ def render_group_words(
         word_to_add = word_to_add.strip()
 
         if not word_to_add:
-            logger.warning(
-                "Add-word rejected for group id %s: empty word",
-                group_id,
-            )
+            logger.warning(f'Add-word rejected for group id {group_id}: empty word')
 
             st.error(
                 "Please enter a word."
@@ -394,11 +344,7 @@ def render_group_words(
                     word=word_to_add,
                 )
 
-                logger.info(
-                    "Word '%s' added to group id %s",
-                    word_to_add,
-                    group_id,
-                )
+                logger.info(f"Word '{word_to_add}' added to group id {group_id}")
 
                 st.success(
                     f"Word '{word_to_add}' added successfully."
@@ -408,9 +354,7 @@ def render_group_words(
 
             except Exception as error:
                 logger.exception(
-                    "Failed to add word '%s' to group id %s",
-                    word_to_add,
-                    group_id,
+                    f"Failed to add word '{word_to_add}' to group id {group_id}",
                 )
 
                 st.error(
@@ -448,9 +392,7 @@ def render_group_words(
 
                 if removed:
                     logger.info(
-                        "Word '%s' removed from group id %s",
-                        selected_word,
-                        group_id,
+                        f"Word '{selected_word}' removed from group id {group_id}",
                     )
 
                     st.success(
@@ -461,9 +403,7 @@ def render_group_words(
 
                 else:
                     logger.warning(
-                        "Word '%s' was not found in group id %s",
-                        selected_word,
-                        group_id,
+                        f"Word '{selected_word}' was not found in group id {group_id}",
                     )
 
                     st.warning(
@@ -472,9 +412,7 @@ def render_group_words(
 
             except Exception as error:
                 logger.exception(
-                    "Failed to remove word '%s' from group id %s",
-                    selected_word,
-                    group_id,
+                    f"Failed to remove word '{selected_word}' from group id {group_id}",
                 )
 
                 st.error(
@@ -494,10 +432,7 @@ def render_group_occurrences(
     Returns:
         None.
     """
-    logger.info(
-        "Rendering occurrences for group id %s",
-        group_id,
-    )
+    logger.info(f'Rendering occurrences for group id {group_id}')
 
     st.subheader("Group Occurrences")
 
@@ -505,10 +440,7 @@ def render_group_occurrences(
         occurrences = get_group_occurrences(group_id)
 
     except Exception:
-        logger.exception(
-            "Failed to fetch occurrences for group id %s",
-            group_id,
-        )
+        logger.exception(f'Failed to fetch occurrences for group id {group_id}')
 
         st.error(
             "Could not load group occurrences."
@@ -516,10 +448,7 @@ def render_group_occurrences(
         return
 
     if not occurrences:
-        logger.info(
-            "No occurrences found for group id %s",
-            group_id,
-        )
+        logger.info(f'No occurrences found for group id {group_id}')
 
         st.info(
             "No occurrences were found for this group."
@@ -561,11 +490,7 @@ def render_group_occurrences(
         hide_index=True,
     )
 
-    logger.info(
-        "Displayed %s occurrences for group id %s",
-        len(rows),
-        group_id,
-    )
+    logger.info(f'Displayed {len(rows)} occurrences for group id {group_id}')
 
 
 def main() -> None:

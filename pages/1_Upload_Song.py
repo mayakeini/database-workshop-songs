@@ -26,7 +26,7 @@ def save_uploaded_file(uploaded_file: st.runtime.uploaded_file_manager.UploadedF
     Raises:
         Exception: If saving the uploaded file fails.
     """
-    logger.info("Saving uploaded file '%s' temporarily", uploaded_file.name)
+    logger.info(f"Saving uploaded file '{uploaded_file.name}' temporarily")
 
     try:
         suffix = Path(uploaded_file.name).suffix
@@ -39,18 +39,13 @@ def save_uploaded_file(uploaded_file: st.runtime.uploaded_file_manager.UploadedF
             temp_path = temp_file.name
 
         logger.info(
-            "Uploaded file '%s' saved temporarily at '%s'",
-            uploaded_file.name,
-            temp_path,
+            f"Uploaded file '{uploaded_file.name}' saved temporarily at '{temp_path}'",
         )
 
         return temp_path
 
     except Exception:
-        logger.exception(
-            "Failed to save uploaded file '%s'",
-            uploaded_file.name,
-        )
+        logger.exception(f"Failed to save uploaded file '{uploaded_file.name}'")
         raise
 
 
@@ -166,10 +161,7 @@ def main() -> None:
     if not submitted:
         return
 
-    logger.info(
-        "Song upload requested for title '%s'",
-        title,
-    )
+    logger.info(f"Song upload requested for title '{title}'")
 
     if not title.strip():
         logger.warning(
@@ -219,11 +211,7 @@ def main() -> None:
             ),
         )
 
-        logger.info(
-            "Song '%s' uploaded successfully with id %s",
-            title,
-            song_id,
-        )
+        logger.info(f"Song '{title}' uploaded successfully with id {song_id}")
 
         st.session_state.song_uploaded_successfully = True
         st.session_state.uploaded_song_id = song_id
@@ -231,21 +219,14 @@ def main() -> None:
         st.rerun()
 
     except ValueError as error:
-        logger.warning(
-            "Song upload rejected for title '%s': %s",
-            title,
-            error,
-        )
+        logger.warning(f"Song upload rejected for title '{title}': {error}")
 
         st.error(
             str(error)
         )
 
     except Exception:
-        logger.exception(
-            "Failed to upload song '%s'",
-            title,
-        )
+        logger.exception(f"Failed to upload song '{title}'")
 
         st.error(
             "Could not upload the song. "
@@ -259,16 +240,10 @@ def main() -> None:
                     missing_ok=True
                 )
 
-                logger.info(
-                    "Temporary file '%s' deleted",
-                    temp_path,
-                )
+                logger.info(f"Temporary file '{temp_path}' deleted")
 
             except Exception:
-                logger.exception(
-                    "Failed to delete temporary file '%s'",
-                    temp_path,
-                )
+                logger.exception(f"Failed to delete temporary file '{temp_path}'")
 
 
 if __name__ == "__main__":

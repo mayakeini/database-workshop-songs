@@ -35,7 +35,6 @@ The project uses:
 - python-oracledb
 - pandas
 - Altair
-- python-dotenv
 - XML using Python's `xml.etree.ElementTree`
 - Git and GitHub
 
@@ -369,11 +368,12 @@ Logs are used for:
 - XML export and restore
 - Error handling
 
-## Environment Variables
+## Database Connection
 
-Database credentials are stored in a local `.env` file.
+The application uses built-in local Oracle connection settings, so a `.env`
+file is not required for the default Docker setup.
 
-Example:
+Default settings:
 
 ORACLE_HOST=localhost
 ORACLE_PORT=1521
@@ -381,7 +381,8 @@ ORACLE_SERVICE=FREEPDB1
 ORACLE_USER=concordance
 ORACLE_PASSWORD=songsproject
 
-The `.env` file must not be committed to Git.
+These values can still be overridden with environment variables when using a
+custom database.
 
 ## Installation
 
@@ -395,7 +396,6 @@ The requirements include packages such as:
 
 oracledb
 streamlit
-python-dotenv
 pandas
 altair
 

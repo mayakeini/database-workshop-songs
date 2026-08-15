@@ -207,6 +207,7 @@ echo.
 echo 6. Starting Streamlit application
 echo.
 echo Setup completed successfully.
+echo Using built-in local Oracle connection settings.
 echo.
 echo Starting Songs Concordance System...
 echo.
@@ -502,12 +503,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-call :create_env_file
-
-if errorlevel 1 (
-    exit /b 1
-)
-
 exit /b 0
 
 
@@ -619,32 +614,6 @@ exit /b 0
 
 
 rem ============================================================
-rem Subroutine: Create application .env
-rem ============================================================
-
-:create_env_file
-
-echo Creating application environment...
-
-> ".env" echo ORACLE_HOST=localhost
->> ".env" echo ORACLE_PORT=1521
->> ".env" echo ORACLE_SERVICE=%ORACLE_SERVICE%
->> ".env" echo ORACLE_USER=%APP_USER%
->> ".env" echo ORACLE_PASSWORD=%APP_PASSWORD%
-
-if not exist ".env" (
-    echo.
-    echo ERROR: Failed to create .env file.
-    exit /b 1
-)
-
-echo .env file created.
-echo.
-
-exit /b 0
-
-
-rem ============================================================
 rem Subroutine: Preserve existing database
 rem ============================================================
 
@@ -652,18 +621,6 @@ rem ============================================================
 
 echo.
 echo Existing database will NOT be modified.
-echo.
-
-if not exist ".env" (
-    echo ERROR: No .env file was found.
-    echo.
-    echo The existing Oracle database was preserved,
-    echo but the application needs valid connection settings.
-    echo Create a valid .env file and run this script again.
-    exit /b 1
-)
-
-echo Existing .env file will be preserved.
 echo.
 echo WARNING:
 echo The existing database schema was not recreated.

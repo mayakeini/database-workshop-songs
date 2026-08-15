@@ -40,10 +40,7 @@ def get_song_options() -> dict[str, int]:
             ) in songs
         }
 
-        logger.info(
-            "Fetched %s songs for word index filter",
-            len(options),
-        )
+        logger.info(f'Fetched {len(options)} songs for word index filter')
 
         return options
 
@@ -66,10 +63,7 @@ def convert_index_to_rows(
     Returns:
         A list of dictionaries containing formatted word index data.
     """
-    logger.info(
-        "Converting %s word index records for display",
-        len(results),
-    )
+    logger.info(f'Converting {len(results)} word index records for display')
 
     rows: list[dict[str, Any]] = []
 
@@ -94,10 +88,7 @@ def convert_index_to_rows(
             }
         )
 
-    logger.info(
-        "Converted %s word index records successfully",
-        len(rows),
-    )
+    logger.info(f'Converted {len(rows)} word index records successfully')
 
     return rows
 
@@ -114,10 +105,7 @@ def create_csv(
     Returns:
         A CSV string containing the word index data.
     """
-    logger.info(
-        "Creating CSV export for %s word index rows",
-        len(rows),
-    )
+    logger.info(f'Creating CSV export for {len(rows)} word index rows')
 
     if not rows:
         logger.warning(
@@ -187,10 +175,7 @@ def main() -> None:
         selected_song_label
     ]
 
-    logger.info(
-        "Word index filter selected: %s",
-        selected_song_label,
-    )
+    logger.info(f'Word index filter selected: {selected_song_label}')
 
     try:
         results = get_word_index(
@@ -240,10 +225,7 @@ def main() -> None:
         mime="text/csv",
     )
 
-    logger.info(
-        "Word index page rendered successfully with %s rows",
-        len(rows),
-    )
+    logger.info(f'Word index page rendered successfully with {len(rows)} rows')
 
 
 if __name__ == "__main__":

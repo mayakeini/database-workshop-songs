@@ -137,21 +137,6 @@ run_schema() {
 }
 
 
-create_env_file() {
-    echo "Creating .env file..."
-
-    cat > .env <<EOF
-ORACLE_HOST=localhost
-ORACLE_PORT=1521
-ORACLE_SERVICE=${ORACLE_SERVICE}
-ORACLE_USER=${APP_USER}
-ORACLE_PASSWORD=${APP_PASSWORD}
-EOF
-
-    echo ".env file created."
-}
-
-
 echo "1. Checking required software"
 check_command docker
 check_command python3
@@ -243,14 +228,10 @@ fi
 echo
 
 
-echo "6. Creating application environment"
-create_env_file
-echo
-
-
-echo "7. Starting Streamlit application"
+echo "6. Starting Streamlit application"
 echo
 echo "Setup completed."
+echo "Using built-in local Oracle connection settings."
 echo
 echo "Starting Songs Concordance System..."
 echo

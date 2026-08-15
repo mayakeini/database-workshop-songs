@@ -49,10 +49,7 @@ def display_song_results(
     Returns:
         None.
     """
-    logger.info(
-        "Displaying %s song search results",
-        len(results),
-    )
+    logger.info(f'Displaying {len(results)} song search results')
 
     if not results:
         logger.info(
@@ -133,27 +130,17 @@ def display_song_results(
                         full_song
                     )
 
-                    logger.info(
-                        "Displayed full text for song id %s",
-                        song_id,
-                    )
+                    logger.info(f'Displayed full text for song id {song_id}')
 
                 else:
-                    logger.warning(
-                        "Song id %s has no reconstructed text",
-                        song_id,
-                    )
+                    logger.warning(f'Song id {song_id} has no reconstructed text')
 
                     st.info(
                         "No song text is available."
                     )
 
             except Exception:
-                logger.exception(
-                    "Failed to display full text "
-                    "for song id %s",
-                    song_id,
-                )
+                logger.exception(f'Failed to display full text for song id {song_id}')
 
                 st.error(
                     "Could not load the full song text."
@@ -172,10 +159,7 @@ def display_word_results(results: list[tuple[Any, ...]]) -> None:
     Returns:
         None.
     """
-    logger.info(
-        "Displaying %s word occurrences",
-        len(results),
-    )
+    logger.info(f'Displaying {len(results)} word occurrences')
 
     if not results:
         logger.info("No occurrences found for searched word")
@@ -245,8 +229,7 @@ def display_word_results(results: list[tuple[Any, ...]]) -> None:
 
             except Exception:
                 logger.exception(
-                    "Failed to load context for occurrence id %s",
-                    occurrence_id,
+                    f'Failed to load context for occurrence id {occurrence_id}',
                 )
 
                 st.error(
@@ -309,12 +292,7 @@ def render_song_search() -> None:
         return
 
     logger.info(
-        "Song search submitted: title='%s', artist='%s', "
-        "album='%s', year=%s",
-        title,
-        artist,
-        album,
-        publication_year if use_year else None,
+        f"Song search submitted: title='{title}', artist='{artist}', album='{album}', year={publication_year if use_year else None}",
     )
 
     try:
@@ -376,10 +354,7 @@ def render_word_search() -> None:
         st.error("Please enter a word.")
         return
 
-    logger.info(
-        "Searching for word '%s'",
-        word,
-    )
+    logger.info(f"Searching for word '{word}'")
 
     try:
         results = search_word(word)
@@ -387,10 +362,7 @@ def render_word_search() -> None:
         display_word_results(results)
 
     except Exception:
-        logger.exception(
-            "Word search failed for '%s'",
-            word,
-        )
+        logger.exception(f"Word search failed for '{word}'")
 
         st.error(
             "Could not search for the word. "

@@ -28,10 +28,7 @@ def build_phrase_options(
     Returns:
         A dictionary mapping a display label to a phrase ID.
     """
-    logger.info(
-        "Building phrase selection options from %s phrases",
-        len(phrases),
-    )
+    logger.info(f'Building phrase selection options from {len(phrases)} phrases')
 
     options = {
         f"{phrase_name} — {phrase_text}": phrase_id
@@ -43,10 +40,7 @@ def build_phrase_options(
         ) in phrases
     }
 
-    logger.info(
-        "Built %s phrase selection options",
-        len(options),
-    )
+    logger.info(f'Built {len(options)} phrase selection options')
 
     return options
 
@@ -110,9 +104,7 @@ def render_create_phrase() -> None:
         return
 
     logger.info(
-        "Phrase creation submitted: name='%s', text='%s'",
-        phrase_name,
-        phrase_text,
+        f"Phrase creation submitted: name='{phrase_name}', text='{phrase_text}'",
     )
 
     try:
@@ -121,11 +113,7 @@ def render_create_phrase() -> None:
             phrase_text=phrase_text,
         )
 
-        logger.info(
-            "Phrase '%s' created successfully with id %s",
-            phrase_name,
-            phrase_id,
-        )
+        logger.info(f"Phrase '{phrase_name}' created successfully with id {phrase_id}")
 
         st.success(
             f"Phrase '{phrase_name}' created successfully."
@@ -134,10 +122,7 @@ def render_create_phrase() -> None:
         st.rerun()
 
     except Exception as error:
-        logger.exception(
-            "Failed to create phrase '%s'",
-            phrase_name,
-        )
+        logger.exception(f"Failed to create phrase '{phrase_name}'")
 
         st.error(
             f"Could not create the phrase: {error}"
@@ -162,10 +147,7 @@ def render_phrase_details(
     Returns:
         None.
     """
-    logger.info(
-        "Rendering details for phrase id %s",
-        phrase_id,
-    )
+    logger.info(f'Rendering details for phrase id {phrase_id}')
 
     st.subheader("Phrase Details")
 
@@ -193,10 +175,7 @@ def render_phrase_occurrences(
     Returns:
         None.
     """
-    logger.info(
-        "Rendering occurrences for phrase id %s",
-        phrase_id,
-    )
+    logger.info(f'Rendering occurrences for phrase id {phrase_id}')
 
     st.subheader("Phrase Occurrences")
 
@@ -206,10 +185,7 @@ def render_phrase_occurrences(
         )
 
     except Exception:
-        logger.exception(
-            "Failed to load occurrences for phrase id %s",
-            phrase_id,
-        )
+        logger.exception(f'Failed to load occurrences for phrase id {phrase_id}')
 
         st.error(
             "Could not load phrase occurrences."
@@ -217,10 +193,7 @@ def render_phrase_occurrences(
         return
 
     if not occurrences:
-        logger.info(
-            "No occurrences found for phrase id %s",
-            phrase_id,
-        )
+        logger.info(f'No occurrences found for phrase id {phrase_id}')
 
         st.info(
             "No occurrences were found for this phrase."
@@ -277,11 +250,7 @@ def render_phrase_occurrences(
                         f"Line {line_number}: {text}"
                     )
 
-    logger.info(
-        "Displayed %s occurrences for phrase id %s",
-        len(occurrences),
-        phrase_id,
-    )
+    logger.info(f'Displayed {len(occurrences)} occurrences for phrase id {phrase_id}')
 
 
 def render_delete_phrase(
@@ -298,10 +267,7 @@ def render_delete_phrase(
     Returns:
         None.
     """
-    logger.info(
-        "Rendering delete controls for phrase id %s",
-        phrase_id,
-    )
+    logger.info(f'Rendering delete controls for phrase id {phrase_id}')
 
     st.subheader("Delete Phrase")
 
@@ -324,10 +290,7 @@ def render_delete_phrase(
     if not delete_clicked:
         return
 
-    logger.info(
-        "Delete requested for phrase id %s",
-        phrase_id,
-    )
+    logger.info(f'Delete requested for phrase id {phrase_id}')
 
     try:
         deleted = delete_phrase(
@@ -335,10 +298,7 @@ def render_delete_phrase(
         )
 
         if deleted:
-            logger.info(
-                "Phrase id %s deleted successfully",
-                phrase_id,
-            )
+            logger.info(f'Phrase id {phrase_id} deleted successfully')
 
             st.success(
                 f"Phrase '{phrase_name}' deleted successfully."
@@ -347,20 +307,14 @@ def render_delete_phrase(
             st.rerun()
 
         else:
-            logger.warning(
-                "Phrase id %s was not found during deletion",
-                phrase_id,
-            )
+            logger.warning(f'Phrase id {phrase_id} was not found during deletion')
 
             st.warning(
                 "The selected phrase no longer exists."
             )
 
     except Exception as error:
-        logger.exception(
-            "Failed to delete phrase id %s",
-            phrase_id,
-        )
+        logger.exception(f'Failed to delete phrase id {phrase_id}')
 
         st.error(
             f"Could not delete the phrase: {error}"

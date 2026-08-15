@@ -2,6 +2,13 @@ import logging
 from typing import Optional
 
 from src.db import get_connection
+from src.queries.statistics_service_queries import (
+    query_select_database_summary,
+    query_select_song_statistics,
+    query_select_word_length_distribution,
+    query_select_words_by_frequency,
+    query_select_words_per_stanza,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,44 +40,7 @@ def get_database_summary() -> dict[str, int | float]:
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                (SELECT COUNT(*) FROM songs) AS song_count,
-                (
-                    SELECT COUNT(*)
-                    FROM word_occurrences
-                ) AS total_words,
-                (
-                    SELECT COUNT(*)
-                    FROM words
-                ) AS unique_words,
-                (
-                    SELECT ROUND(
-                        AVG(LENGTH(w.text)),
-                        2
-                    )
-                    FROM word_occurrences wo
-                    JOIN words w
-                        ON wo.word_id = w.word_id
-                ) AS average_word_length,
-                (
-                    SELECT ROUND(
-                        AVG(words_per_line),
-                        2
-                    )
-                    FROM (
-                        SELECT
-                            COUNT(*) AS words_per_line
-                        FROM word_occurrences
-                        GROUP BY
-                            song_id,
-                            global_line_number
-                    )
-                ) AS average_words_per_line
-            FROM dual
-            """
-        )
+        query_select_database_summary(cursor)
 
         row = cursor.fetchone()
 
@@ -82,10 +52,7 @@ def get_database_summary() -> dict[str, int | float]:
             "average_words_per_line": row[4] or 0,
         }
 
-        logger.info(
-            "Database summary fetched successfully: %s",
-            result,
-        )
+        logger.info(f'Database summary fetched successfully: {result}')
 
         return result
 
@@ -118,56 +85,19 @@ def get_song_statistics(
     Raises:
         Exception: If the database query fails.
     """
-    logger.info(
-        "Fetching statistics for song id %s",
-        song_id,
-    )
+    logger.info(f'Fetching statistics for song id {song_id}')
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                s.title,
-                COUNT(
-                    DISTINCT wo.stanza_id
-                ) AS stanza_count,
-                COUNT(
-                    DISTINCT wo.global_line_number
-                ) AS line_count,
-                COUNT(
-                    wo.occurrence_id
-                ) AS word_count,
-                COUNT(
-                    DISTINCT wo.word_id
-                ) AS unique_word_count,
-                ROUND(
-                    AVG(LENGTH(w.text)),
-                    2
-                ) AS average_word_length
-            FROM songs s
-            LEFT JOIN word_occurrences wo
-                ON s.song_id = wo.song_id
-            LEFT JOIN words w
-                ON wo.word_id = w.word_id
-            WHERE s.song_id = :song_id
-            GROUP BY
-                s.song_id,
-                s.title
-            """,
-            song_id=song_id,
-        )
+        query_select_song_statistics(cursor, song_id)
 
         row = cursor.fetchone()
 
         if row is None:
-            logger.warning(
-                "Song id %s was not found",
-                song_id,
-            )
+            logger.warning(f'Song id {song_id} was not found')
             return None
 
         result = {
@@ -179,20 +109,12 @@ def get_song_statistics(
             "average_word_length": row[5] or 0,
         }
 
-        logger.info(
-            "Statistics for song id %s "
-            "fetched successfully",
-            song_id,
-        )
+        logger.info(f'Statistics for song id {song_id} fetched successfully')
 
         return result
 
     except Exception:
-        logger.exception(
-            "Failed to fetch statistics "
-            "for song id %s",
-            song_id,
-        )
+        logger.exception(f'Failed to fetch statistics for song id {song_id}')
         raise
 
     finally:
@@ -223,23 +145,14 @@ def get_most_frequent_words(
         Exception: If the database query fails.
     """
     if limit <= 0:
-        logger.warning(
-            "Invalid frequency result limit: %s",
-            limit,
-        )
+        logger.warning(f'Invalid frequency result limit: {limit}')
 
         raise ValueError(
             "Limit must be greater than zero"
         )
 
     logger.info(
-        "Fetching %s most frequent words%s",
-        limit,
-        (
-            f" for song id {song_id}"
-            if song_id is not None
-            else ""
-        ),
+        f"Fetching {limit} most frequent words{f' for song id {song_id}' if song_id is not None else ''}",
     )
 
     connection = get_connection()
@@ -247,60 +160,16 @@ def get_most_frequent_words(
     try:
         cursor = connection.cursor()
 
-        if song_id is None:
-            cursor.execute(
-                """
-                SELECT
-                    word_text,
-                    occurrence_count
-                FROM (
-                    SELECT
-                        w.text AS word_text,
-                        COUNT(*) AS occurrence_count
-                    FROM words w
-                    JOIN word_occurrences wo
-                        ON w.word_id = wo.word_id
-                    GROUP BY w.text
-                    ORDER BY
-                        occurrence_count DESC,
-                        w.text
-                )
-                WHERE ROWNUM <= :limit
-                """,
-                limit=limit,
-            )
-
-        else:
-            cursor.execute(
-                """
-                SELECT
-                    word_text,
-                    occurrence_count
-                FROM (
-                    SELECT
-                        w.text AS word_text,
-                        COUNT(*) AS occurrence_count
-                    FROM words w
-                    JOIN word_occurrences wo
-                        ON w.word_id = wo.word_id
-                    WHERE wo.song_id = :song_id
-                    GROUP BY w.text
-                    ORDER BY
-                        occurrence_count DESC,
-                        w.text
-                )
-                WHERE ROWNUM <= :limit
-                """,
-                song_id=song_id,
-                limit=limit,
-            )
+        query_select_words_by_frequency(
+            cursor,
+            limit=limit,
+            song_id=song_id,
+            descending=True,
+        )
 
         result = cursor.fetchall()
 
-        logger.info(
-            "Fetched %s frequent words",
-            len(result),
-        )
+        logger.info(f'Fetched {len(result)} frequent words')
 
         return result
 
@@ -338,23 +207,14 @@ def get_rarest_words(
         Exception: If the database query fails.
     """
     if limit <= 0:
-        logger.warning(
-            "Invalid rare-word result limit: %s",
-            limit,
-        )
+        logger.warning(f'Invalid rare-word result limit: {limit}')
 
         raise ValueError(
             "Limit must be greater than zero"
         )
 
     logger.info(
-        "Fetching %s rarest words%s",
-        limit,
-        (
-            f" for song id {song_id}"
-            if song_id is not None
-            else ""
-        ),
+        f"Fetching {limit} rarest words{f' for song id {song_id}' if song_id is not None else ''}",
     )
 
     connection = get_connection()
@@ -362,60 +222,16 @@ def get_rarest_words(
     try:
         cursor = connection.cursor()
 
-        if song_id is None:
-            cursor.execute(
-                """
-                SELECT
-                    word_text,
-                    occurrence_count
-                FROM (
-                    SELECT
-                        w.text AS word_text,
-                        COUNT(*) AS occurrence_count
-                    FROM words w
-                    JOIN word_occurrences wo
-                        ON w.word_id = wo.word_id
-                    GROUP BY w.text
-                    ORDER BY
-                        occurrence_count ASC,
-                        w.text
-                )
-                WHERE ROWNUM <= :limit
-                """,
-                limit=limit,
-            )
-
-        else:
-            cursor.execute(
-                """
-                SELECT
-                    word_text,
-                    occurrence_count
-                FROM (
-                    SELECT
-                        w.text AS word_text,
-                        COUNT(*) AS occurrence_count
-                    FROM words w
-                    JOIN word_occurrences wo
-                        ON w.word_id = wo.word_id
-                    WHERE wo.song_id = :song_id
-                    GROUP BY w.text
-                    ORDER BY
-                        occurrence_count ASC,
-                        w.text
-                )
-                WHERE ROWNUM <= :limit
-                """,
-                song_id=song_id,
-                limit=limit,
-            )
+        query_select_words_by_frequency(
+            cursor,
+            limit=limit,
+            song_id=song_id,
+            descending=False,
+        )
 
         result = cursor.fetchall()
 
-        logger.info(
-            "Fetched %s rare words",
-            len(result),
-        )
+        logger.info(f'Fetched {len(result)} rare words')
 
         return result
 
@@ -452,12 +268,7 @@ def get_word_length_distribution(
         Exception: If the database query fails.
     """
     logger.info(
-        "Fetching word length distribution%s",
-        (
-            f" for song id {song_id}"
-            if song_id is not None
-            else ""
-        ),
+        f"Fetching word length distribution{f' for song id {song_id}' if song_id is not None else ''}",
     )
 
     connection = get_connection()
@@ -465,46 +276,12 @@ def get_word_length_distribution(
     try:
         cursor = connection.cursor()
 
-        if song_id is None:
-            cursor.execute(
-                """
-                SELECT
-                    LENGTH(w.text) AS word_length,
-                    COUNT(*) AS occurrence_count
-                FROM words w
-                JOIN word_occurrences wo
-                    ON w.word_id = wo.word_id
-                GROUP BY
-                    LENGTH(w.text)
-                ORDER BY
-                    LENGTH(w.text)
-                """
-            )
-
-        else:
-            cursor.execute(
-                """
-                SELECT
-                    LENGTH(w.text) AS word_length,
-                    COUNT(*) AS occurrence_count
-                FROM words w
-                JOIN word_occurrences wo
-                    ON w.word_id = wo.word_id
-                WHERE wo.song_id = :song_id
-                GROUP BY
-                    LENGTH(w.text)
-                ORDER BY
-                    LENGTH(w.text)
-                """,
-                song_id=song_id,
-            )
+        query_select_word_length_distribution(cursor, song_id)
 
         result = cursor.fetchall()
 
         logger.info(
-            "Fetched word length distribution "
-            "with %s different lengths",
-            len(result),
+            f'Fetched word length distribution with {len(result)} different lengths',
         )
 
         return result
@@ -538,54 +315,25 @@ def get_words_per_stanza(
     Raises:
         Exception: If the database query fails.
     """
-    logger.info(
-        "Fetching word count per stanza "
-        "for song id %s",
-        song_id,
-    )
+    logger.info(f'Fetching word count per stanza for song id {song_id}')
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                st.stanza_number,
-                COUNT(
-                    wo.occurrence_id
-                ) AS word_count
-            FROM stanzas st
-            LEFT JOIN word_occurrences wo
-                ON st.stanza_id = wo.stanza_id
-            WHERE st.song_id = :song_id
-            GROUP BY
-                st.stanza_id,
-                st.stanza_number
-            ORDER BY
-                st.stanza_number
-            """,
-            song_id=song_id,
-        )
+        query_select_words_per_stanza(cursor, song_id)
 
         result = cursor.fetchall()
 
         logger.info(
-            "Fetched statistics for %s stanzas "
-            "in song id %s",
-            len(result),
-            song_id,
+            f'Fetched statistics for {len(result)} stanzas in song id {song_id}',
         )
 
         return result
 
     except Exception:
-        logger.exception(
-            "Failed to fetch word count per stanza "
-            "for song id %s",
-            song_id,
-        )
+        logger.exception(f'Failed to fetch word count per stanza for song id {song_id}')
         raise
 
     finally:

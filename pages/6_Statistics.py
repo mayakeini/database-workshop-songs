@@ -48,10 +48,7 @@ def get_song_options() -> dict[str, int]:
             ) in songs
         }
 
-        logger.info(
-            "Fetched %s songs for statistics selector",
-            len(options),
-        )
+        logger.info(f'Fetched {len(options)} songs for statistics selector')
 
         return options
 
@@ -134,10 +131,7 @@ def render_song_summary(song_id: int) -> None:
     Returns:
         None.
     """
-    logger.info(
-        "Rendering summary statistics for song id %s",
-        song_id,
-    )
+    logger.info(f'Rendering summary statistics for song id {song_id}')
 
     try:
         statistics = get_song_statistics(
@@ -145,10 +139,7 @@ def render_song_summary(song_id: int) -> None:
         )
 
         if statistics is None:
-            logger.warning(
-                "No statistics found for song id %s",
-                song_id,
-            )
+            logger.warning(f'No statistics found for song id {song_id}')
 
             st.warning(
                 "The selected song could not be found."
@@ -193,16 +184,10 @@ def render_song_summary(song_id: int) -> None:
                 statistics["average_word_length"],
             )
 
-        logger.info(
-            "Song summary rendered successfully for song id %s",
-            song_id,
-        )
+        logger.info(f'Song summary rendered successfully for song id {song_id}')
 
     except Exception:
-        logger.exception(
-            "Failed to render statistics for song id %s",
-            song_id,
-        )
+        logger.exception(f'Failed to render statistics for song id {song_id}')
 
         st.error(
             "Could not load statistics for the selected song."
@@ -222,10 +207,7 @@ def render_frequency_tables(
     Returns:
         None.
     """
-    logger.info(
-        "Rendering frequency tables for song id %s",
-        song_id,
-    )
+    logger.info(f'Rendering frequency tables for song id {song_id}')
 
     try:
         frequent_words = get_most_frequent_words(
@@ -301,10 +283,7 @@ def render_frequency_chart(
     Returns:
         None.
     """
-    logger.info(
-        "Rendering word frequency chart for song id %s",
-        song_id,
-    )
+    logger.info(f'Rendering word frequency chart for song id {song_id}')
 
     try:
         frequent_words = get_most_frequent_words(
@@ -365,10 +344,7 @@ def render_word_length_distribution(
     Returns:
         None.
     """
-    logger.info(
-        "Rendering word length distribution for song id %s",
-        song_id,
-    )
+    logger.info(f'Rendering word length distribution for song id {song_id}')
 
     try:
         distribution = get_word_length_distribution(
@@ -429,10 +405,7 @@ def render_words_per_stanza(
     Returns:
         None.
     """
-    logger.info(
-        "Rendering words per stanza for song id %s",
-        song_id,
-    )
+    logger.info(f'Rendering words per stanza for song id {song_id}')
 
     try:
         stanza_statistics = get_words_per_stanza(
@@ -440,10 +413,7 @@ def render_words_per_stanza(
         )
 
         if not stanza_statistics:
-            logger.info(
-                "No stanza statistics found for song id %s",
-                song_id,
-            )
+            logger.info(f'No stanza statistics found for song id {song_id}')
 
             st.info(
                 "No stanza statistics are available."
@@ -467,16 +437,11 @@ def render_words_per_stanza(
         )
 
         logger.info(
-            "Words-per-stanza chart rendered successfully "
-            "for song id %s",
-            song_id,
+            f'Words-per-stanza chart rendered successfully for song id {song_id}',
         )
 
     except Exception:
-        logger.exception(
-            "Failed to render words per stanza for song id %s",
-            song_id,
-        )
+        logger.exception(f'Failed to render words per stanza for song id {song_id}')
 
         st.error(
             "Could not render stanza statistics."
@@ -531,10 +496,7 @@ def main() -> None:
         selected_label
     ]
 
-    logger.info(
-        "Statistics scope selected: %s",
-        selected_label,
-    )
+    logger.info(f'Statistics scope selected: {selected_label}')
 
     # Summary section
     if selected_song_id is None:
@@ -555,10 +517,7 @@ def main() -> None:
     st.markdown("---")
 
     # Most frequent words chart
-    logger.info(
-        "Rendering most frequent words chart for song id %s",
-        selected_song_id,
-    )
+    logger.info(f'Rendering most frequent words chart for song id {selected_song_id}')
 
     try:
         frequent_words = get_most_frequent_words(
@@ -636,10 +595,7 @@ def main() -> None:
     st.markdown("---")
 
     # Word length distribution
-    logger.info(
-        "Rendering word length distribution for song id %s",
-        selected_song_id,
-    )
+    logger.info(f'Rendering word length distribution for song id {selected_song_id}')
 
     try:
         distribution = get_word_length_distribution(
@@ -716,10 +672,7 @@ def main() -> None:
     if selected_song_id is not None:
         st.markdown("---")
 
-        logger.info(
-            "Rendering words per stanza for song id %s",
-            selected_song_id,
-        )
+        logger.info(f'Rendering words per stanza for song id {selected_song_id}')
 
         try:
             stanza_statistics = get_words_per_stanza(
@@ -776,8 +729,7 @@ def main() -> None:
 
             else:
                 logger.info(
-                    "No stanza statistics available for song id %s",
-                    selected_song_id,
+                    f'No stanza statistics available for song id {selected_song_id}',
                 )
 
                 st.info(
@@ -786,8 +738,7 @@ def main() -> None:
 
         except Exception:
             logger.exception(
-                "Failed to render words per stanza for song id %s",
-                selected_song_id,
+                f'Failed to render words per stanza for song id {selected_song_id}',
             )
 
             st.error(

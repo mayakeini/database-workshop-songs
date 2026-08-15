@@ -4,6 +4,9 @@ from datetime import datetime
 from typing import Any
 
 from src.db import get_connection
+from src.queries import general as general_queries
+from src.queries import song_service_queries as song_queries
+from src.queries import xml_service_queries as xml_queries
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +27,7 @@ def _add_text_element(
     Returns:
         The newly created XML element.
     """
-    logger.debug(
-        "Adding XML element '%s'",
-        tag,
-    )
+    logger.debug(f"Adding XML element '{tag}'")
 
     element = ET.SubElement(
         parent,
@@ -63,10 +63,7 @@ def _get_required_text(
     element = parent.find(tag)
 
     if element is None or element.text is None:
-        logger.error(
-            "Required XML element '%s' is missing",
-            tag,
-        )
+        logger.error(f"Required XML element '{tag}' is missing")
 
         raise ValueError(
             f"Required XML element '{tag}' is missing."
@@ -145,22 +142,7 @@ def export_database_to_xml() -> bytes:
             "songs",
         )
 
-        cursor.execute(
-            """
-            SELECT
-                song_id,
-                title,
-                artist,
-                album,
-                publication_year,
-                TO_CHAR(
-                    upload_date,
-                    'YYYY-MM-DD HH24:MI:SS TZH:TZM'
-                ) AS upload_date
-            FROM songs
-            ORDER BY song_id
-            """
-        )
+        xml_queries.query_select_songs_for_xml_export(cursor)
 
         songs = cursor.fetchall()
 
@@ -214,16 +196,7 @@ def export_database_to_xml() -> bytes:
             "stanzas",
         )
 
-        cursor.execute(
-            """
-            SELECT
-                stanza_id,
-                song_id,
-                stanza_number
-            FROM stanzas
-            ORDER BY stanza_id
-            """
-        )
+        xml_queries.query_select_stanzas_for_xml_export(cursor)
 
         for (
             stanza_id,
@@ -254,15 +227,7 @@ def export_database_to_xml() -> bytes:
             "words",
         )
 
-        cursor.execute(
-            """
-            SELECT
-                word_id,
-                text
-            FROM words
-            ORDER BY word_id
-            """
-        )
+        xml_queries.query_select_words_for_xml_export(cursor)
 
         for (
             word_id,
@@ -286,22 +251,7 @@ def export_database_to_xml() -> bytes:
             "word_occurrences",
         )
 
-        cursor.execute(
-            """
-            SELECT
-                occurrence_id,
-                word_id,
-                song_id,
-                stanza_id,
-                global_line_number,
-                line_number_in_stanza,
-                position_in_line,
-                position_in_song,
-                original_token
-            FROM word_occurrences
-            ORDER BY occurrence_id
-            """
-        )
+        xml_queries.query_select_word_occurrences_for_xml_export(cursor)
 
         for row in cursor.fetchall():
             (
@@ -376,20 +326,7 @@ def export_database_to_xml() -> bytes:
             "word_groups",
         )
 
-        cursor.execute(
-            """
-            SELECT
-                group_id,
-                group_name,
-                description,
-                TO_CHAR(
-                    creation_date,
-                    'YYYY-MM-DD HH24:MI:SS TZH:TZM'
-                ) AS creation_date
-            FROM word_groups
-            ORDER BY group_id
-            """
-        )
+        xml_queries.query_select_word_groups_for_xml_export(cursor)
 
         for (
             group_id,
@@ -427,17 +364,7 @@ def export_database_to_xml() -> bytes:
             "group_words",
         )
 
-        cursor.execute(
-            """
-            SELECT
-                group_id,
-                word_id
-            FROM group_words
-            ORDER BY
-                group_id,
-                word_id
-            """
-        )
+        xml_queries.query_select_group_words_for_xml_export(cursor)
 
         for (
             group_id,
@@ -466,20 +393,7 @@ def export_database_to_xml() -> bytes:
             "phrases",
         )
 
-        cursor.execute(
-            """
-            SELECT
-                phrase_id,
-                phrase_name,
-                phrase_text,
-                TO_CHAR(
-                    creation_date,
-                    'YYYY-MM-DD HH24:MI:SS TZH:TZM'
-                ) AS creation_date
-            FROM phrases
-            ORDER BY phrase_id
-            """
-        )
+        xml_queries.query_select_phrases_for_xml_export(cursor)
 
         for (
             phrase_id,
@@ -517,18 +431,7 @@ def export_database_to_xml() -> bytes:
             "phrase_occurrences",
         )
 
-        cursor.execute(
-            """
-            SELECT
-                phrase_occurrence_id,
-                phrase_id,
-                song_id,
-                start_occurrence_id,
-                end_occurrence_id
-            FROM phrase_occurrences
-            ORDER BY phrase_occurrence_id
-            """
-        )
+        xml_queries.query_select_phrase_occurrences_for_xml_export(cursor)
 
         for row in cursor.fetchall():
             (
@@ -637,10 +540,7 @@ def restore_database_from_xml(
         ) from error
 
     if root.tag != "concordance_backup":
-        logger.error(
-            "Invalid XML root element: %s",
-            root.tag,
-        )
+        logger.error(f'Invalid XML root element: {root.tag}')
 
         raise ValueError(
             "The XML file is not a concordance backup."
@@ -659,10 +559,7 @@ def restore_database_from_xml(
 
     for section_name in required_sections:
         if root.find(section_name) is None:
-            logger.error(
-                "Required XML section '%s' is missing",
-                section_name,
-            )
+            logger.error(f"Required XML section '{section_name}' is missing")
 
             raise ValueError(
                 f"Required XML section "
@@ -708,9 +605,7 @@ def restore_database_from_xml(
         ]
 
         for table_name in delete_order:
-            cursor.execute(
-                f"DELETE FROM {table_name}"
-            )
+            xml_queries.query_delete_table_data(cursor, table_name)
 
         # SONGS
         songs_section = root.find(
@@ -736,24 +631,8 @@ def restore_database_from_xml(
                 "upload_date",
             )
 
-            cursor.execute(
-                """
-                INSERT INTO songs (
-                    title,
-                    artist,
-                    album,
-                    publication_year,
-                    upload_date
-                )
-                VALUES (
-                    :title,
-                    :artist,
-                    :album,
-                    :publication_year,
-                    :upload_date
-                )
-                RETURNING song_id INTO :song_id
-                """,
+            song_queries.query_insert_song_returning_id(
+                cursor,
                 title=_get_required_text(
                     song,
                     "title",
@@ -810,18 +689,8 @@ def restore_database_from_xml(
 
             new_id_var = cursor.var(int)
 
-            cursor.execute(
-                """
-                INSERT INTO stanzas (
-                    song_id,
-                    stanza_number
-                )
-                VALUES (
-                    :song_id,
-                    :stanza_number
-                )
-                RETURNING stanza_id INTO :stanza_id
-                """,
+            song_queries.query_insert_stanza_returning_id(
+                cursor,
                 song_id=song_map[
                     old_song_id
                 ],
@@ -859,17 +728,9 @@ def restore_database_from_xml(
 
             new_id_var = cursor.var(int)
 
-            cursor.execute(
-                """
-                INSERT INTO words (
-                    text
-                )
-                VALUES (
-                    :text
-                )
-                RETURNING word_id INTO :word_id
-                """,
-                text=_get_required_text(
+            general_queries.query_insert_word_returning_id(
+                cursor,
+                word=_get_required_text(
                     word,
                     "text",
                 ),
@@ -923,30 +784,8 @@ def restore_database_from_xml(
 
             new_id_var = cursor.var(int)
 
-            cursor.execute(
-                """
-                INSERT INTO word_occurrences (
-                    word_id,
-                    song_id,
-                    stanza_id,
-                    global_line_number,
-                    line_number_in_stanza,
-                    position_in_line,
-                    position_in_song,
-                    original_token
-                )
-                VALUES (
-                    :word_id,
-                    :song_id,
-                    :stanza_id,
-                    :global_line_number,
-                    :line_number_in_stanza,
-                    :position_in_line,
-                    :position_in_song,
-                    :original_token
-                )
-                RETURNING occurrence_id INTO :occurrence_id
-                """,
+            xml_queries.query_insert_word_occurrence_for_xml_restore(
+                cursor,
                 word_id=word_map[
                     old_word_id
                 ],
@@ -1020,20 +859,8 @@ def restore_database_from_xml(
                 "creation_date",
             )
 
-            cursor.execute(
-                """
-                INSERT INTO word_groups (
-                    group_name,
-                    description,
-                    creation_date
-                )
-                VALUES (
-                    :group_name,
-                    :description,
-                    :creation_date
-                )
-                RETURNING group_id INTO :group_id
-                """,
+            xml_queries.query_insert_word_group_for_xml_restore(
+                cursor,
                 group_name=_get_required_text(
                     group,
                     "group_name",
@@ -1082,17 +909,8 @@ def restore_database_from_xml(
                 )
             )
 
-            cursor.execute(
-                """
-                INSERT INTO group_words (
-                    group_id,
-                    word_id
-                )
-                VALUES (
-                    :group_id,
-                    :word_id
-                )
-                """,
+            general_queries.query_insert_group_word(
+                cursor,
                 group_id=group_map[
                     old_group_id
                 ],
@@ -1127,20 +945,8 @@ def restore_database_from_xml(
                 "creation_date",
             )
 
-            cursor.execute(
-                """
-                INSERT INTO phrases (
-                    phrase_name,
-                    phrase_text,
-                    creation_date
-                )
-                VALUES (
-                    :phrase_name,
-                    :phrase_text,
-                    :creation_date
-                )
-                RETURNING phrase_id INTO :phrase_id
-                """,
+            xml_queries.query_insert_phrase_for_xml_restore(
+                cursor,
                 phrase_name=_get_required_text(
                     phrase,
                     "phrase_name",
@@ -1203,21 +1009,8 @@ def restore_database_from_xml(
                 )
             )
 
-            cursor.execute(
-                """
-                INSERT INTO phrase_occurrences (
-                    phrase_id,
-                    song_id,
-                    start_occurrence_id,
-                    end_occurrence_id
-                )
-                VALUES (
-                    :phrase_id,
-                    :song_id,
-                    :start_occurrence_id,
-                    :end_occurrence_id
-                )
-                """,
+            general_queries.query_insert_phrase_occurrence(
+                cursor,
                 phrase_id=phrase_map[
                     old_phrase_id
                 ],
@@ -1238,11 +1031,7 @@ def restore_database_from_xml(
 
         connection.commit()
 
-        logger.info(
-            "Database restoration completed "
-            "successfully: %s",
-            counts,
-        )
+        logger.info(f'Database restoration completed successfully: {counts}')
 
         return counts
 

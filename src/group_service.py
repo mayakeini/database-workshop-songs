@@ -2,6 +2,20 @@ import logging
 from typing import Any
 
 from src.db import get_connection
+from src.queries.general import (
+    query_insert_group_word,
+    query_select_word_id_by_text,
+)
+from src.queries.group_service_queries import (
+    query_delete_group,
+    query_delete_group_word_by_text,
+    query_insert_group_returning_id,
+    query_select_group_id_by_name,
+    query_select_group_occurrences,
+    query_select_group_words,
+    query_select_groups,
+    query_update_group,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,31 +50,20 @@ def create_group(
             "Group name cannot be empty."
         )
 
-    logger.info(
-        "Creating word group '%s'",
-        group_name,
-    )
+    logger.info(f"Creating word group '{group_name}'")
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT group_id
-            FROM word_groups
-            WHERE LOWER(group_name) = LOWER(:group_name)
-            """,
-            group_name=group_name,
-        )
+        query_select_group_id_by_name(cursor, group_name)
 
         existing_group = cursor.fetchone()
 
         if existing_group is not None:
             logger.warning(
-                "Group creation rejected because group '%s' already exists",
-                group_name,
+                f"Group creation rejected because group '{group_name}' already exists",
             )
 
             raise ValueError(
@@ -69,18 +72,8 @@ def create_group(
 
         group_id_var = cursor.var(int)
 
-        cursor.execute(
-            """
-            INSERT INTO word_groups (
-                group_name,
-                description
-            )
-            VALUES (
-                :group_name,
-                :description
-            )
-            RETURNING group_id INTO :group_id
-            """,
+        query_insert_group_returning_id(
+            cursor,
             group_name=group_name,
             description=description,
             group_id=group_id_var,
@@ -90,11 +83,7 @@ def create_group(
 
         connection.commit()
 
-        logger.info(
-            "Created word group '%s' with id %s",
-            group_name,
-            group_id,
-        )
+        logger.info(f"Created word group '{group_name}' with id {group_id}")
 
         return group_id
 
@@ -105,10 +94,7 @@ def create_group(
     except Exception:
         connection.rollback()
 
-        logger.exception(
-            "Failed to create group '%s'",
-            group_name,
-        )
+        logger.exception(f"Failed to create group '{group_name}'")
         raise
 
     finally:
@@ -135,33 +121,19 @@ def add_word_to_group(
     """
     word = word.strip().lower()
 
-    logger.info(
-        "Adding word '%s' to group id %s",
-        word,
-        group_id,
-    )
+    logger.info(f"Adding word '{word}' to group id {group_id}")
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT word_id
-            FROM words
-            WHERE text = :word
-            """,
-            word=word,
-        )
+        query_select_word_id_by_text(cursor, word)
 
         row = cursor.fetchone()
 
         if row is None:
-            logger.warning(
-                "Word '%s' does not exist in the database",
-                word,
-            )
+            logger.warning(f"Word '{word}' does not exist in the database")
 
             raise ValueError(
                 f"Word '{word}' does not exist in database"
@@ -169,37 +141,16 @@ def add_word_to_group(
 
         word_id = row[0]
 
-        cursor.execute(
-            """
-            INSERT INTO group_words (
-                group_id,
-                word_id
-            )
-            VALUES (
-                :group_id,
-                :word_id
-            )
-            """,
-            group_id=group_id,
-            word_id=word_id,
-        )
+        query_insert_group_word(cursor, group_id, word_id)
 
         connection.commit()
 
-        logger.info(
-            "Added word '%s' to group id %s",
-            word,
-            group_id,
-        )
+        logger.info(f"Added word '{word}' to group id {group_id}")
 
     except Exception:
         connection.rollback()
 
-        logger.exception(
-            "Failed to add word '%s' to group id %s",
-            word,
-            group_id,
-        )
+        logger.exception(f"Failed to add word '{word}' to group id {group_id}")
         raise
 
     finally:
@@ -225,59 +176,31 @@ def remove_word_from_group(
     """
     word = word.strip().lower()
 
-    logger.info(
-        "Removing word '%s' from group id %s",
-        word,
-        group_id,
-    )
+    logger.info(f"Removing word '{word}' from group id {group_id}")
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            DELETE FROM group_words
-            WHERE group_id = :group_id
-              AND word_id = (
-                    SELECT word_id
-                    FROM words
-                    WHERE text = :word
-              )
-            """,
-            group_id=group_id,
-            word=word,
-        )
+        query_delete_group_word_by_text(cursor, group_id, word)
 
         removed = cursor.rowcount > 0
 
         connection.commit()
 
         if removed:
-            logger.info(
-                "Removed word '%s' from group id %s",
-                word,
-                group_id,
-            )
+            logger.info(f"Removed word '{word}' from group id {group_id}")
 
         else:
-            logger.warning(
-                "Word '%s' was not found in group id %s",
-                word,
-                group_id,
-            )
+            logger.warning(f"Word '{word}' was not found in group id {group_id}")
 
         return removed
 
     except Exception:
         connection.rollback()
 
-        logger.exception(
-            "Failed to remove word '%s' from group id %s",
-            word,
-            group_id,
-        )
+        logger.exception(f"Failed to remove word '{word}' from group id {group_id}")
         raise
 
     finally:
@@ -303,45 +226,23 @@ def get_group_words(
     Raises:
         Exception: If the database query fails.
     """
-    logger.info(
-        "Fetching words for group id %s",
-        group_id,
-    )
+    logger.info(f'Fetching words for group id {group_id}')
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                w.word_id,
-                w.text
-            FROM group_words gw
-            JOIN words w
-                ON gw.word_id = w.word_id
-            WHERE gw.group_id = :group_id
-            ORDER BY w.text
-            """,
-            group_id=group_id,
-        )
+        query_select_group_words(cursor, group_id)
 
         result = cursor.fetchall()
 
-        logger.info(
-            "Fetched %s words for group id %s",
-            len(result),
-            group_id,
-        )
+        logger.info(f'Fetched {len(result)} words for group id {group_id}')
 
         return result
 
     except Exception:
-        logger.exception(
-            "Failed to fetch words for group id %s",
-            group_id,
-        )
+        logger.exception(f'Failed to fetch words for group id {group_id}')
         raise
 
     finally:
@@ -367,27 +268,11 @@ def get_groups() -> list[tuple[Any, ...]]:
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                group_id,
-                group_name,
-                description,
-                TO_CHAR(
-                    creation_date,
-                    'YYYY-MM-DD HH24:MI:SS TZH:TZM'
-                ) AS creation_date
-            FROM word_groups
-            ORDER BY group_name
-            """
-        )
+        query_select_groups(cursor)
 
         result = cursor.fetchall()
 
-        logger.info(
-            "Fetched %s word groups",
-            len(result),
-        )
+        logger.info(f'Fetched {len(result)} word groups')
 
         return result
 
@@ -416,60 +301,23 @@ def get_group_occurrences(
     Raises:
         Exception: If the database query fails.
     """
-    logger.info(
-        "Fetching occurrences for group id %s",
-        group_id,
-    )
+    logger.info(f'Fetching occurrences for group id {group_id}')
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                w.text,
-                s.song_id,
-                s.title,
-                st.stanza_number,
-                wo.global_line_number,
-                wo.line_number_in_stanza,
-                wo.position_in_line,
-                wo.original_token
-            FROM group_words gw
-            JOIN words w
-                ON gw.word_id = w.word_id
-            JOIN word_occurrences wo
-                ON w.word_id = wo.word_id
-            JOIN songs s
-                ON wo.song_id = s.song_id
-            JOIN stanzas st
-                ON wo.stanza_id = st.stanza_id
-            WHERE gw.group_id = :group_id
-            ORDER BY
-                w.text,
-                s.song_id,
-                wo.position_in_song
-            """,
-            group_id=group_id,
-        )
+        query_select_group_occurrences(cursor, group_id)
 
         result = cursor.fetchall()
 
-        logger.info(
-            "Fetched %s occurrences for group id %s",
-            len(result),
-            group_id,
-        )
+        logger.info(f'Fetched {len(result)} occurrences for group id {group_id}')
 
         return result
 
     except Exception:
-        logger.exception(
-            "Failed to fetch occurrences for group id %s",
-            group_id,
-        )
+        logger.exception(f'Failed to fetch occurrences for group id {group_id}')
         raise
 
     finally:
@@ -499,37 +347,24 @@ def update_group(
     group_name = group_name.strip()
 
     if not group_name:
-        logger.warning(
-            "Attempted to update group id %s with an empty name",
-            group_id,
-        )
+        logger.warning(f'Attempted to update group id {group_id} with an empty name')
 
         raise ValueError(
             "Group name cannot be empty"
         )
 
-    logger.info(
-        "Updating group id %s to name '%s'",
-        group_id,
-        group_name,
-    )
+    logger.info(f"Updating group id {group_id} to name '{group_name}'")
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            UPDATE word_groups
-            SET
-                group_name = :group_name,
-                description = :description
-            WHERE group_id = :group_id
-            """,
+        query_update_group(
+            cursor,
+            group_id=group_id,
             group_name=group_name,
             description=description,
-            group_id=group_id,
         )
 
         updated = cursor.rowcount > 0
@@ -537,26 +372,17 @@ def update_group(
         connection.commit()
 
         if updated:
-            logger.info(
-                "Group id %s updated successfully",
-                group_id,
-            )
+            logger.info(f'Group id {group_id} updated successfully')
 
         else:
-            logger.warning(
-                "Group id %s was not found",
-                group_id,
-            )
+            logger.warning(f'Group id {group_id} was not found')
 
         return updated
 
     except Exception:
         connection.rollback()
 
-        logger.exception(
-            "Failed to update group id %s",
-            group_id,
-        )
+        logger.exception(f'Failed to update group id {group_id}')
         raise
 
     finally:
@@ -581,49 +407,31 @@ def delete_group(
     Raises:
         Exception: If the database operation fails.
     """
-    logger.info(
-        "Deleting group id %s",
-        group_id,
-    )
+    logger.info(f'Deleting group id {group_id}')
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            DELETE FROM word_groups
-            WHERE group_id = :group_id
-            """,
-            group_id=group_id,
-        )
+        query_delete_group(cursor, group_id)
 
         deleted = cursor.rowcount > 0
 
         connection.commit()
 
         if deleted:
-            logger.info(
-                "Group id %s deleted successfully",
-                group_id,
-            )
+            logger.info(f'Group id {group_id} deleted successfully')
 
         else:
-            logger.warning(
-                "Group id %s was not found",
-                group_id,
-            )
+            logger.warning(f'Group id {group_id} was not found')
 
         return deleted
 
     except Exception:
         connection.rollback()
 
-        logger.exception(
-            "Failed to delete group id %s",
-            group_id,
-        )
+        logger.exception(f'Failed to delete group id {group_id}')
         raise
 
     finally:

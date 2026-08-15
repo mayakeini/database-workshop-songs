@@ -130,10 +130,7 @@ def render_restore() -> None:
     if not restore_clicked:
         return
 
-    logger.info(
-        "Database restore requested using file '%s'",
-        uploaded_file.name,
-    )
+    logger.info(f"Database restore requested using file '{uploaded_file.name}'")
 
     try:
         xml_data = uploaded_file.getvalue()
@@ -199,10 +196,7 @@ def render_restore() -> None:
             )
 
     except ValueError as error:
-        logger.warning(
-            "XML restore rejected: %s",
-            error,
-        )
+        logger.warning(f'XML restore rejected: {error}')
 
         st.error(str(error))
 

@@ -2,6 +2,18 @@ import logging
 from typing import List, Tuple
 
 from src.db import get_connection
+from src.queries.general import (
+    query_insert_phrase_occurrence,
+    query_select_context_lines,
+)
+from src.queries.phrase_service_queries import (
+    query_delete_phrase,
+    query_delete_phrase_occurrences,
+    query_insert_phrase_returning_id,
+    query_select_phrase_occurrences,
+    query_select_phrase_search_occurrences,
+    query_select_phrases,
+)
 from src.text_parser import _normalize_word
 
 logger = logging.getLogger(__name__)
@@ -26,11 +38,7 @@ def create_phrase(phrase_name: str, phrase_text: str) -> int:
         logger.warning("Attempted to create an empty phrase")
         raise ValueError("Phrase text cannot be empty")
 
-    logger.info(
-        "Creating phrase '%s' with text '%s'",
-        phrase_name,
-        phrase_text,
-    )
+    logger.info(f"Creating phrase '{phrase_name}' with text '{phrase_text}'")
 
     connection = get_connection()
 
@@ -38,18 +46,8 @@ def create_phrase(phrase_name: str, phrase_text: str) -> int:
         cursor = connection.cursor()
         phrase_id_var = cursor.var(int)
 
-        cursor.execute(
-            """
-            INSERT INTO phrases (
-                phrase_name,
-                phrase_text
-            )
-            VALUES (
-                :phrase_name,
-                :phrase_text
-            )
-            RETURNING phrase_id INTO :phrase_id
-            """,
+        query_insert_phrase_returning_id(
+            cursor,
             phrase_name=phrase_name,
             phrase_text=phrase_text,
             phrase_id=phrase_id_var,
@@ -59,20 +57,13 @@ def create_phrase(phrase_name: str, phrase_text: str) -> int:
 
         connection.commit()
 
-        logger.info(
-            "Created phrase '%s' with id %s",
-            phrase_name,
-            phrase_id,
-        )
+        logger.info(f"Created phrase '{phrase_name}' with id {phrase_id}")
 
         return phrase_id
 
     except Exception:
         connection.rollback()
-        logger.exception(
-            "Failed to create phrase '%s'",
-            phrase_name,
-        )
+        logger.exception(f"Failed to create phrase '{phrase_name}'")
         raise
 
     finally:
@@ -117,16 +108,11 @@ def find_phrase_occurrences(
     ]
 
     if not normalized_words:
-        logger.warning(
-            "Phrase %s contains no searchable words",
-            phrase_id,
-        )
+        logger.warning(f'Phrase {phrase_id} contains no searchable words')
         raise ValueError("Phrase contains no valid words")
 
     logger.info(
-        "Searching for phrase id %s containing %s words",
-        phrase_id,
-        len(normalized_words),
+        f'Searching for phrase id {phrase_id} containing {len(normalized_words)} words',
     )
 
     connection = get_connection()
@@ -134,23 +120,7 @@ def find_phrase_occurrences(
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                wo.occurrence_id,
-                wo.song_id,
-                wo.global_line_number,
-                wo.position_in_line,
-                w.text
-            FROM word_occurrences wo
-            JOIN words w
-                ON wo.word_id = w.word_id
-            ORDER BY
-                wo.song_id,
-                wo.global_line_number,
-                wo.position_in_line
-            """
-        )
+        query_select_phrase_search_occurrences(cursor)
 
         rows = cursor.fetchall()
 
@@ -215,19 +185,12 @@ def find_phrase_occurrences(
                 )
             )
 
-        logger.info(
-            "Found %s occurrences for phrase id %s",
-            len(occurrences),
-            phrase_id,
-        )
+        logger.info(f'Found {len(occurrences)} occurrences for phrase id {phrase_id}')
 
         return occurrences
 
     except Exception:
-        logger.exception(
-            "Failed while searching for phrase id %s",
-            phrase_id,
-        )
+        logger.exception(f'Failed while searching for phrase id {phrase_id}')
         raise
 
     finally:
@@ -256,24 +219,14 @@ def save_phrase_occurrences(
     Raises:
         Exception: If the database operation fails.
     """
-    logger.info(
-        "Saving %s occurrences for phrase id %s",
-        len(occurrences),
-        phrase_id,
-    )
+    logger.info(f'Saving {len(occurrences)} occurrences for phrase id {phrase_id}')
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            DELETE FROM phrase_occurrences
-            WHERE phrase_id = :phrase_id
-            """,
-            phrase_id=phrase_id,
-        )
+        query_delete_phrase_occurrences(cursor, phrase_id)
 
         for (
             song_id,
@@ -281,21 +234,8 @@ def save_phrase_occurrences(
             end_occurrence_id,
             _,
         ) in occurrences:
-            cursor.execute(
-                """
-                INSERT INTO phrase_occurrences (
-                    phrase_id,
-                    song_id,
-                    start_occurrence_id,
-                    end_occurrence_id
-                )
-                VALUES (
-                    :phrase_id,
-                    :song_id,
-                    :start_occurrence_id,
-                    :end_occurrence_id
-                )
-                """,
+            query_insert_phrase_occurrence(
+                cursor,
                 phrase_id=phrase_id,
                 song_id=song_id,
                 start_occurrence_id=start_occurrence_id,
@@ -304,19 +244,13 @@ def save_phrase_occurrences(
 
         connection.commit()
 
-        logger.info(
-            "Saved %s phrase occurrences successfully",
-            len(occurrences),
-        )
+        logger.info(f'Saved {len(occurrences)} phrase occurrences successfully')
 
         return len(occurrences)
 
     except Exception:
         connection.rollback()
-        logger.exception(
-            "Failed to save occurrences for phrase id %s",
-            phrase_id,
-        )
+        logger.exception(f'Failed to save occurrences for phrase id {phrase_id}')
         raise
 
     finally:
@@ -341,10 +275,7 @@ def create_and_search_phrase(
         ValueError: If the phrase text is invalid.
         Exception: If any database operation fails.
     """
-    logger.info(
-        "Starting creation and search for phrase '%s'",
-        phrase_name,
-    )
+    logger.info(f"Starting creation and search for phrase '{phrase_name}'")
 
     phrase_id = create_phrase(
         phrase_name=phrase_name,
@@ -361,10 +292,7 @@ def create_and_search_phrase(
         occurrences=occurrences,
     )
 
-    logger.info(
-        "Finished processing phrase '%s'",
-        phrase_name,
-    )
+    logger.info(f"Finished processing phrase '{phrase_name}'")
 
     return phrase_id
 
@@ -391,27 +319,11 @@ def get_phrases() -> list[tuple[int, str, str, object]]:
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                phrase_id,
-                phrase_name,
-                phrase_text,
-                TO_CHAR(
-                    creation_date,
-                    'YYYY-MM-DD HH24:MI:SS TZH:TZM'
-                ) AS creation_date
-            FROM phrases
-            ORDER BY phrase_name
-            """
-        )
+        query_select_phrases(cursor)
 
         result = cursor.fetchall()
 
-        logger.info(
-            "Fetched %s phrases",
-            len(result),
-        )
+        logger.info(f'Fetched {len(result)} phrases')
 
         return result
 
@@ -435,47 +347,29 @@ def delete_phrase(phrase_id: int) -> bool:
     Raises:
         Exception: If the database operation fails.
     """
-    logger.info(
-        "Deleting phrase id %s",
-        phrase_id,
-    )
+    logger.info(f'Deleting phrase id {phrase_id}')
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            DELETE FROM phrases
-            WHERE phrase_id = :phrase_id
-            """,
-            phrase_id=phrase_id,
-        )
+        query_delete_phrase(cursor, phrase_id)
 
         deleted = cursor.rowcount > 0
 
         connection.commit()
 
         if deleted:
-            logger.info(
-                "Phrase id %s deleted successfully",
-                phrase_id,
-            )
+            logger.info(f'Phrase id {phrase_id} deleted successfully')
         else:
-            logger.warning(
-                "Phrase id %s was not found",
-                phrase_id,
-            )
+            logger.warning(f'Phrase id {phrase_id} was not found')
 
         return deleted
 
     except Exception:
         connection.rollback()
-        logger.exception(
-            "Failed to delete phrase id %s",
-            phrase_id,
-        )
+        logger.exception(f'Failed to delete phrase id {phrase_id}')
         raise
 
     finally:
@@ -503,54 +397,23 @@ def get_phrase_occurrences(
     Raises:
         Exception: If the database query fails.
     """
-    logger.info(
-        "Fetching occurrences for phrase id %s",
-        phrase_id,
-    )
+    logger.info(f'Fetching occurrences for phrase id {phrase_id}')
 
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
 
-        cursor.execute(
-            """
-            SELECT
-                s.song_id,
-                s.title,
-                start_occ.global_line_number,
-                start_occ.position_in_line,
-                end_occ.position_in_line
-            FROM phrase_occurrences po
-            JOIN songs s
-                ON po.song_id = s.song_id
-            JOIN word_occurrences start_occ
-                ON po.start_occurrence_id = start_occ.occurrence_id
-            JOIN word_occurrences end_occ
-                ON po.end_occurrence_id = end_occ.occurrence_id
-            WHERE po.phrase_id = :phrase_id
-            ORDER BY
-                s.song_id,
-                start_occ.position_in_song
-            """,
-            phrase_id=phrase_id,
-        )
+        query_select_phrase_occurrences(cursor, phrase_id)
 
         result = cursor.fetchall()
 
-        logger.info(
-            "Fetched %s occurrences for phrase id %s",
-            len(result),
-            phrase_id,
-        )
+        logger.info(f'Fetched {len(result)} occurrences for phrase id {phrase_id}')
 
         return result
 
     except Exception:
-        logger.exception(
-            "Failed to fetch occurrences for phrase id %s",
-            phrase_id,
-        )
+        logger.exception(f'Failed to fetch occurrences for phrase id {phrase_id}')
         raise
 
     finally:
@@ -575,10 +438,7 @@ def get_phrase_occurrences_with_context(
     Raises:
         Exception: If retrieving the occurrences or context fails.
     """
-    logger.info(
-        "Fetching occurrences with context for phrase id %s",
-        phrase_id,
-    )
+    logger.info(f'Fetching occurrences with context for phrase id {phrase_id}')
 
     occurrences = get_phrase_occurrences(phrase_id)
 
@@ -597,22 +457,11 @@ def get_phrase_occurrences_with_context(
             end_position,
         ) in occurrences:
 
-            cursor.execute(
-                """
-                SELECT
-                    global_line_number,
-                    position_in_line,
-                    original_token
-                FROM word_occurrences
-                WHERE song_id = :song_id
-                  AND global_line_number BETWEEN :previous_line AND :next_line
-                ORDER BY
-                    global_line_number,
-                    position_in_line
-                """,
-                song_id=song_id,
-                previous_line=global_line_number - 1,
-                next_line=global_line_number + 1,
+            query_select_context_lines(
+                cursor,
+                song_id,
+                global_line_number - 1,
+                global_line_number + 1,
             )
 
             rows = cursor.fetchall()
@@ -639,18 +488,13 @@ def get_phrase_occurrences_with_context(
             )
 
         logger.info(
-            "Built context for %s occurrences of phrase id %s",
-            len(results),
-            phrase_id,
+            f'Built context for {len(results)} occurrences of phrase id {phrase_id}',
         )
 
         return results
 
     except Exception:
-        logger.exception(
-            "Failed to build context for phrase id %s",
-            phrase_id,
-        )
+        logger.exception(f'Failed to build context for phrase id {phrase_id}')
         raise
 
     finally:

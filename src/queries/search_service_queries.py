@@ -17,14 +17,17 @@ def query_search_songs(cursor, title=None, artist=None, album=None, publication_
 
     if title:
         query += " AND LOWER(title) LIKE LOWER(:title)"
+        # the addition of % allow for LIKE comparison
         params["title"] = f"%{title}%"
 
     if artist:
         query += " AND LOWER(artist) LIKE LOWER(:artist)"
+        # the addition of % allow for LIKE comparison
         params["artist"] = f"%{artist}%"
 
     if album:
         query += " AND LOWER(album) LIKE LOWER(:album)"
+        # the addition of % allow for LIKE comparison
         params["album"] = f"%{album}%"
 
     if publication_year:

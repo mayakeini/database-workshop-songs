@@ -2,18 +2,16 @@ import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from src.db import get_connection
-from src.queries.general import (
-    query_insert_word_returning_id,
-    query_select_line_tokens_by_global_number,
-    query_select_word_id_by_text,
-)
-from src.queries.song_service_queries import (
+from src.db import get_database_service
+from src.queries.db_queries import (
     query_count_matching_song,
     query_insert_song_returning_id,
     query_insert_stanza_returning_id,
     query_insert_word_occurrence,
+    query_insert_word_returning_id,
+    query_select_line_tokens_by_global_number,
     query_select_song_text_rows,
+    query_select_word_id_by_text,
 )
 from src.text_parser import parse_song
 
@@ -93,119 +91,114 @@ def insert_song(
             "or contains no valid words."
         )
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().transaction() as cursor:
+            song_id_var = cursor.var(int)
 
-        song_id_var = cursor.var(int)
+            israel_time = datetime.now(
+                ZoneInfo("Asia/Jerusalem")
+            )
 
-        israel_time = datetime.now(
-            ZoneInfo("Asia/Jerusalem")
-        )
+            logger.info(f'Using Israel upload time: {israel_time}')
 
-        logger.info(f'Using Israel upload time: {israel_time}')
-
-        query_insert_song_returning_id(
-            cursor,
-            title=title,
-            artist=artist,
-            album=album,
-            publication_year=publication_year,
-            upload_date=israel_time,
-            song_id=song_id_var,
-        )
-
-        song_id = song_id_var.getvalue()[0]
-
-        logger.info(f'Inserted song with id {song_id}')
-
-        stanza_ids: dict[int, int] = {}
-
-        for occurrence in occurrences:
-            stanza_number = occurrence[
-                "stanza_number"
-            ]
-
-            if stanza_number in stanza_ids:
-                continue
-
-            stanza_id_var = cursor.var(int)
-
-            query_insert_stanza_returning_id(
+            query_insert_song_returning_id(
                 cursor,
-                song_id=song_id,
-                stanza_number=stanza_number,
-                stanza_id=stanza_id_var,
+                title=title,
+                artist=artist,
+                album=album,
+                publication_year=publication_year,
+                upload_date=israel_time,
+                song_id=song_id_var,
             )
 
-            stanza_id = stanza_id_var.getvalue()[0]
+            song_id = song_id_var.getvalue()[0]
 
-            stanza_ids[
-                stanza_number
-            ] = stanza_id
+            logger.info(f'Inserted song with id {song_id}')
 
-            logger.debug(
-                f'Inserted stanza {stanza_number} with id {stanza_id} for song id {song_id}',
-            )
+            stanza_ids: dict[int, int] = {}
 
-        word_ids: dict[str, int] = {}
+            for occurrence in occurrences:
+                stanza_number = occurrence[
+                    "stanza_number"
+                ]
 
-        for occurrence in occurrences:
-            word = occurrence[
-                "normalized_word"
-            ]
+                if stanza_number in stanza_ids:
+                    continue
 
-            if word not in word_ids:
-                query_select_word_id_by_text(cursor, word)
+                stanza_id_var = cursor.var(int)
 
-                row = cursor.fetchone()
+                query_insert_stanza_returning_id(
+                    cursor,
+                    song_id=song_id,
+                    stanza_number=stanza_number,
+                    stanza_id=stanza_id_var,
+                )
 
-                if row is not None:
-                    word_id = row[0]
+                stanza_id = stanza_id_var.getvalue()[0]
 
-                    logger.debug(f"Using existing word '{word}' with id {word_id}")
+                stanza_ids[
+                    stanza_number
+                ] = stanza_id
 
-                else:
-                    word_id_var = cursor.var(int)
+                logger.debug(
+                    f'Inserted stanza {stanza_number} with id {stanza_id} for song id {song_id}',
+                )
 
-                    query_insert_word_returning_id(
-                        cursor,
-                        word=word,
-                        word_id=word_id_var,
-                    )
+            word_ids: dict[str, int] = {}
 
-                    word_id = word_id_var.getvalue()[0]
+            for occurrence in occurrences:
+                word = occurrence[
+                    "normalized_word"
+                ]
 
-                    logger.debug(f"Inserted new word '{word}' with id {word_id}")
+                if word not in word_ids:
+                    query_select_word_id_by_text(cursor, word)
 
-                word_ids[word] = word_id
+                    row = cursor.fetchone()
 
-            query_insert_word_occurrence(
-                cursor,
-                word_id=word_ids[word],
-                song_id=song_id,
-                stanza_id=stanza_ids[
-                    occurrence["stanza_number"]
-                ],
-                global_line_number=occurrence[
-                    "global_line_number"
-                ],
-                line_number_in_stanza=occurrence[
-                    "line_number_in_stanza"
-                ],
-                position_in_line=occurrence[
-                    "position_in_line"
-                ],
-                position_in_song=occurrence[
-                    "position_in_song"
-                ],
-                original_token=occurrence[
-                    "original_token"
-                ],
-            )
+                    if row is not None:
+                        word_id = row[0]
 
-        connection.commit()
+                        logger.debug(f"Using existing word '{word}' with id {word_id}")
+
+                    else:
+                        word_id_var = cursor.var(int)
+
+                        query_insert_word_returning_id(
+                            cursor,
+                            word=word,
+                            word_id=word_id_var,
+                        )
+
+                        word_id = word_id_var.getvalue()[0]
+
+                        logger.debug(f"Inserted new word '{word}' with id {word_id}")
+
+                    word_ids[word] = word_id
+
+                query_insert_word_occurrence(
+                    cursor,
+                    word_id=word_ids[word],
+                    song_id=song_id,
+                    stanza_id=stanza_ids[
+                        occurrence["stanza_number"]
+                    ],
+                    global_line_number=occurrence[
+                        "global_line_number"
+                    ],
+                    line_number_in_stanza=occurrence[
+                        "line_number_in_stanza"
+                    ],
+                    position_in_line=occurrence[
+                        "position_in_line"
+                    ],
+                    position_in_song=occurrence[
+                        "position_in_song"
+                    ],
+                    original_token=occurrence[
+                        "original_token"
+                    ],
+                )
 
         logger.info(
             f"Song inserted successfully: '{title}' ({len(occurrences)} occurrences)",
@@ -214,14 +207,9 @@ def insert_song(
         return song_id
 
     except Exception:
-        connection.rollback()
-
         logger.exception(f"Failed to insert song: '{title}'")
 
         raise
-
-    finally:
-        connection.close()
 
 
 def get_line(
@@ -244,38 +232,32 @@ def get_line(
     """
     logger.info(f'Fetching line {global_line_number} for song id {song_id}')
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_line_tokens_by_global_number(
+                cursor,
+                song_id,
+                global_line_number,
+            )
 
-        query_select_line_tokens_by_global_number(
-            cursor,
-            song_id,
-            global_line_number,
-        )
+            tokens = [
+                row[0]
+                for row in cursor.fetchall()
+            ]
 
-        tokens = [
-            row[0]
-            for row in cursor.fetchall()
-        ]
+            line = " ".join(tokens)
 
-        line = " ".join(tokens)
+            logger.info(
+                f'Line {global_line_number} for song id {song_id} reconstructed successfully',
+            )
 
-        logger.info(
-            f'Line {global_line_number} for song id {song_id} reconstructed successfully',
-        )
-
-        return line
+            return line
 
     except Exception:
         logger.exception(
             f'Failed to fetch line {global_line_number} for song id {song_id}',
         )
         raise
-
-    finally:
-        connection.close()
 
 
 def get_song_text(
@@ -298,78 +280,72 @@ def get_song_text(
     """
     logger.info(f'Fetching complete text for song id {song_id}')
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_song_text_rows(cursor, song_id)
 
-        query_select_song_text_rows(cursor, song_id)
+            rows = cursor.fetchall()
 
-        rows = cursor.fetchall()
+            if not rows:
+                logger.info(f'No text found for song id {song_id}')
+                return ""
 
-        if not rows:
-            logger.info(f'No text found for song id {song_id}')
-            return ""
+            result: list[str] = []
 
-        result: list[str] = []
+            current_stanza: int | None = None
+            current_line: int | None = None
+            line_tokens: list[str] = []
 
-        current_stanza: int | None = None
-        current_line: int | None = None
-        line_tokens: list[str] = []
+            for (
+                stanza_number,
+                line_number,
+                position,
+                token,
+            ) in rows:
+                if (
+                    current_stanza is not None
+                    and stanza_number != current_stanza
+                ):
+                    if line_tokens:
+                        result.append(
+                            " ".join(line_tokens)
+                        )
+                        line_tokens = []
 
-        for (
-            stanza_number,
-            line_number,
-            position,
-            token,
-        ) in rows:
-            if (
-                current_stanza is not None
-                and stanza_number != current_stanza
-            ):
-                if line_tokens:
+                    result.append("")
+
+                elif (
+                    current_line is not None
+                    and line_number != current_line
+                ):
                     result.append(
                         " ".join(line_tokens)
                     )
                     line_tokens = []
 
-                result.append("")
+                line_tokens.append(
+                    token
+                )
 
-            elif (
-                current_line is not None
-                and line_number != current_line
-            ):
+                current_stanza = stanza_number
+                current_line = line_number
+
+            if line_tokens:
                 result.append(
                     " ".join(line_tokens)
                 )
-                line_tokens = []
 
-            line_tokens.append(
-                token
+            song_text = "\n".join(
+                result
             )
 
-            current_stanza = stanza_number
-            current_line = line_number
+            logger.info(f'Complete text for song id {song_id} reconstructed successfully')
 
-        if line_tokens:
-            result.append(
-                " ".join(line_tokens)
-            )
-
-        song_text = "\n".join(
-            result
-        )
-
-        logger.info(f'Complete text for song id {song_id} reconstructed successfully')
-
-        return song_text
+            return song_text
 
     except Exception:
         logger.exception(f'Failed to reconstruct text for song id {song_id}')
         raise
-
-    finally:
-        connection.close()
 
 
 def song_exists(
@@ -398,29 +374,23 @@ def song_exists(
         f"Checking whether song already exists: title='{title}', artist='{artist}', album='{album}'",
     )
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_count_matching_song(
+                cursor,
+                title=title,
+                artist=artist,
+                album=album,
+            )
 
-        query_count_matching_song(
-            cursor,
-            title=title,
-            artist=artist,
-            album=album,
-        )
+            count = cursor.fetchone()[0]
 
-        count = cursor.fetchone()[0]
+            exists = count > 0
 
-        exists = count > 0
+            logger.info(f'Song existence check completed. Exists={exists}')
 
-        logger.info(f'Song existence check completed. Exists={exists}')
-
-        return exists
+            return exists
 
     except Exception:
         logger.exception(f"Failed to check whether song '{title}' already exists")
         raise
-
-    finally:
-        connection.close()

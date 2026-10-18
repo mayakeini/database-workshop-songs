@@ -83,6 +83,9 @@ Python service modules handle the main application logic:
 - XML backup and restore
 - Database connection
 
+All application SQL query helpers live in `src/queries/db_queries.py`, grouped
+by purpose. Services call these helpers with a cursor supplied by `DatabaseService`.
+
 ### User Interface Layer
 
 The Streamlit interface provides separate pages for:
@@ -107,6 +110,9 @@ database-workshop-songs/
 ├── src/
 │   ├── __init__.py
 │   ├── db.py
+│   ├── queries/
+│   │   ├── __init__.py
+│   │   └── db_queries.py
 │   ├── logger_config.py
 │   ├── text_parser.py
 │   ├── song_service.py
@@ -383,6 +389,33 @@ ORACLE_PASSWORD=songsproject
 
 These values can still be overridden with environment variables when using a
 custom database.
+
+`src/db.py` provides a `DatabaseService` backed by an Oracle connection pool.
+`get_database_service()` lazily creates and caches one service per application
+process using `st.cache_resource`, so Streamlit sessions and reruns share the
+pool. The pool starts with one connection and grows to four; an operation waits
+up to five seconds for a connection when the pool is busy. Restart the app after
+changing the Oracle environment variables.
+
+Each operation borrows its own connection and cursor:
+
+- `with get_database_service().read_cursor() as cursor:` fetches data without
+  committing. Fetch results before leaving the block.
+- `with get_database_service().transaction() as cursor:` commits when the whole
+  block succeeds and rolls back if it raises an error. Pass the same cursor to
+  every query that must be committed together; opening another context starts
+  a separate operation.
+
+Both contexts close the cursor and return the connection to the pool. New Oracle
+sessions receive the existing timezone setup. Song uploads and XML restores each
+keep all their writes in a single transaction.
+
+Run the database service and transaction regression tests without a running
+Oracle database:
+
+```sh
+python -m unittest discover -s tests -v
+```
 
 ## Installation
 

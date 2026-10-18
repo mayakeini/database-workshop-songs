@@ -1,15 +1,13 @@
 import logging
 from typing import List, Tuple
 
-from src.db import get_connection
-from src.queries.general import (
-    query_insert_phrase_occurrence,
-    query_select_context_lines,
-)
-from src.queries.phrase_service_queries import (
+from src.db import get_database_service
+from src.queries.db_queries import (
     query_delete_phrase,
     query_delete_phrase_occurrences,
+    query_insert_phrase_occurrence,
     query_insert_phrase_returning_id,
+    query_select_context_lines,
     query_select_phrase_occurrences,
     query_select_phrase_search_occurrences,
     query_select_phrases,
@@ -40,34 +38,26 @@ def create_phrase(phrase_name: str, phrase_text: str) -> int:
 
     logger.info(f"Creating phrase '{phrase_name}' with text '{phrase_text}'")
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
-        phrase_id_var = cursor.var(int)
+        with get_database_service().transaction() as cursor:
+            phrase_id_var = cursor.var(int)
 
-        query_insert_phrase_returning_id(
-            cursor,
-            phrase_name=phrase_name,
-            phrase_text=phrase_text,
-            phrase_id=phrase_id_var,
-        )
+            query_insert_phrase_returning_id(
+                cursor,
+                phrase_name=phrase_name,
+                phrase_text=phrase_text,
+                phrase_id=phrase_id_var,
+            )
 
-        phrase_id = phrase_id_var.getvalue()[0]
-
-        connection.commit()
+            phrase_id = phrase_id_var.getvalue()[0]
 
         logger.info(f"Created phrase '{phrase_name}' with id {phrase_id}")
 
         return phrase_id
 
     except Exception:
-        connection.rollback()
         logger.exception(f"Failed to create phrase '{phrase_name}'")
         raise
-
-    finally:
-        connection.close()
 
 def find_phrase_occurrences(
     phrase_id: int,
@@ -115,86 +105,80 @@ def find_phrase_occurrences(
         f'Searching for phrase id {phrase_id} containing {len(normalized_words)} words',
     )
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_phrase_search_occurrences(cursor)
 
-        query_select_phrase_search_occurrences(cursor)
+            rows = cursor.fetchall()
 
-        rows = cursor.fetchall()
+            occurrences = []
 
-        occurrences = []
+            phrase_length = len(normalized_words)
 
-        phrase_length = len(normalized_words)
+            for index in range(len(rows) - phrase_length + 1):
+                candidate = rows[index:index + phrase_length]
 
-        for index in range(len(rows) - phrase_length + 1):
-            candidate = rows[index:index + phrase_length]
+                candidate_words = [
+                    row[4]
+                    for row in candidate
+                ]
 
-            candidate_words = [
-                row[4]
-                for row in candidate
-            ]
+                if candidate_words != normalized_words:
+                    continue
 
-            if candidate_words != normalized_words:
-                continue
+                song_ids = {
+                    row[1]
+                    for row in candidate
+                }
 
-            song_ids = {
-                row[1]
-                for row in candidate
-            }
+                line_numbers = {
+                    row[2]
+                    for row in candidate
+                }
 
-            line_numbers = {
-                row[2]
-                for row in candidate
-            }
+                positions = [
+                    row[3]
+                    for row in candidate
+                ]
 
-            positions = [
-                row[3]
-                for row in candidate
-            ]
+                same_song = len(song_ids) == 1
+                same_line = len(line_numbers) == 1
 
-            same_song = len(song_ids) == 1
-            same_line = len(line_numbers) == 1
-
-            consecutive_positions = positions == list(
-                range(
-                    positions[0],
-                    positions[0] + phrase_length,
+                consecutive_positions = positions == list(
+                    range(
+                        positions[0],
+                        positions[0] + phrase_length,
+                    )
                 )
-            )
 
-            if not (
-                same_song
-                and same_line
-                and consecutive_positions
-            ):
-                continue
+                if not (
+                    same_song
+                    and same_line
+                    and consecutive_positions
+                ):
+                    continue
 
-            song_id = candidate[0][1]
-            global_line_number = candidate[0][2]
-            start_occurrence_id = candidate[0][0]
-            end_occurrence_id = candidate[-1][0]
+                song_id = candidate[0][1]
+                global_line_number = candidate[0][2]
+                start_occurrence_id = candidate[0][0]
+                end_occurrence_id = candidate[-1][0]
 
-            occurrences.append(
-                (
-                    song_id,
-                    start_occurrence_id,
-                    end_occurrence_id,
-                    global_line_number,
+                occurrences.append(
+                    (
+                        song_id,
+                        start_occurrence_id,
+                        end_occurrence_id,
+                        global_line_number,
+                    )
                 )
-            )
 
-        logger.info(f'Found {len(occurrences)} occurrences for phrase id {phrase_id}')
+            logger.info(f'Found {len(occurrences)} occurrences for phrase id {phrase_id}')
 
-        return occurrences
+            return occurrences
 
     except Exception:
         logger.exception(f'Failed while searching for phrase id {phrase_id}')
         raise
-
-    finally:
-        connection.close()
 
 def save_phrase_occurrences(
     phrase_id: int,
@@ -221,40 +205,31 @@ def save_phrase_occurrences(
     """
     logger.info(f'Saving {len(occurrences)} occurrences for phrase id {phrase_id}')
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().transaction() as cursor:
+            query_delete_phrase_occurrences(cursor, phrase_id)
 
-        query_delete_phrase_occurrences(cursor, phrase_id)
-
-        for (
-            song_id,
-            start_occurrence_id,
-            end_occurrence_id,
-            _,
-        ) in occurrences:
-            query_insert_phrase_occurrence(
-                cursor,
-                phrase_id=phrase_id,
-                song_id=song_id,
-                start_occurrence_id=start_occurrence_id,
-                end_occurrence_id=end_occurrence_id,
-            )
-
-        connection.commit()
+            for (
+                song_id,
+                start_occurrence_id,
+                end_occurrence_id,
+                _,
+            ) in occurrences:
+                query_insert_phrase_occurrence(
+                    cursor,
+                    phrase_id=phrase_id,
+                    song_id=song_id,
+                    start_occurrence_id=start_occurrence_id,
+                    end_occurrence_id=end_occurrence_id,
+                )
 
         logger.info(f'Saved {len(occurrences)} phrase occurrences successfully')
 
         return len(occurrences)
 
     except Exception:
-        connection.rollback()
         logger.exception(f'Failed to save occurrences for phrase id {phrase_id}')
         raise
-
-    finally:
-        connection.close()
 
 def create_and_search_phrase(
     phrase_name: str,
@@ -314,25 +289,19 @@ def get_phrases() -> list[tuple[int, str, str, object]]:
     """
     logger.info("Fetching all phrases")
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_phrases(cursor)
 
-        query_select_phrases(cursor)
+            result = cursor.fetchall()
 
-        result = cursor.fetchall()
+            logger.info(f'Fetched {len(result)} phrases')
 
-        logger.info(f'Fetched {len(result)} phrases')
-
-        return result
+            return result
 
     except Exception:
         logger.exception("Failed to fetch phrases")
         raise
-
-    finally:
-        connection.close()
 
 def delete_phrase(phrase_id: int) -> bool:
     """
@@ -349,16 +318,11 @@ def delete_phrase(phrase_id: int) -> bool:
     """
     logger.info(f'Deleting phrase id {phrase_id}')
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().transaction() as cursor:
+            query_delete_phrase(cursor, phrase_id)
 
-        query_delete_phrase(cursor, phrase_id)
-
-        deleted = cursor.rowcount > 0
-
-        connection.commit()
+            deleted = cursor.rowcount > 0
 
         if deleted:
             logger.info(f'Phrase id {phrase_id} deleted successfully')
@@ -368,12 +332,8 @@ def delete_phrase(phrase_id: int) -> bool:
         return deleted
 
     except Exception:
-        connection.rollback()
         logger.exception(f'Failed to delete phrase id {phrase_id}')
         raise
-
-    finally:
-        connection.close()
 
 def get_phrase_occurrences(
     phrase_id: int,
@@ -399,25 +359,19 @@ def get_phrase_occurrences(
     """
     logger.info(f'Fetching occurrences for phrase id {phrase_id}')
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_phrase_occurrences(cursor, phrase_id)
 
-        query_select_phrase_occurrences(cursor, phrase_id)
+            result = cursor.fetchall()
 
-        result = cursor.fetchall()
+            logger.info(f'Fetched {len(result)} occurrences for phrase id {phrase_id}')
 
-        logger.info(f'Fetched {len(result)} occurrences for phrase id {phrase_id}')
-
-        return result
+            return result
 
     except Exception:
         logger.exception(f'Failed to fetch occurrences for phrase id {phrase_id}')
         raise
-
-    finally:
-        connection.close()
 
 def get_phrase_occurrences_with_context(
     phrase_id: int,
@@ -444,58 +398,52 @@ def get_phrase_occurrences_with_context(
 
     results: list[dict[str, object]] = []
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
-
-        for (
-            song_id,
-            song_title,
-            global_line_number,
-            start_position,
-            end_position,
-        ) in occurrences:
-
-            query_select_context_lines(
-                cursor,
+        with get_database_service().read_cursor() as cursor:
+            for (
                 song_id,
-                global_line_number - 1,
-                global_line_number + 1,
-            )
+                song_title,
+                global_line_number,
+                start_position,
+                end_position,
+            ) in occurrences:
 
-            rows = cursor.fetchall()
+                query_select_context_lines(
+                    cursor,
+                    song_id,
+                    global_line_number - 1,
+                    global_line_number + 1,
+                )
 
-            lines: dict[int, list[str]] = {}
+                rows = cursor.fetchall()
 
-            for line_number, _, token in rows:
-                lines.setdefault(line_number, []).append(token)
+                lines: dict[int, list[str]] = {}
 
-            context = {
-                line_number: " ".join(tokens)
-                for line_number, tokens in lines.items()
-            }
+                for line_number, _, token in rows:
+                    lines.setdefault(line_number, []).append(token)
 
-            results.append(
-                {
-                    "song_id": song_id,
-                    "song_title": song_title,
-                    "global_line_number": global_line_number,
-                    "start_position": start_position,
-                    "end_position": end_position,
-                    "context": context,
+                context = {
+                    line_number: " ".join(tokens)
+                    for line_number, tokens in lines.items()
                 }
+
+                results.append(
+                    {
+                        "song_id": song_id,
+                        "song_title": song_title,
+                        "global_line_number": global_line_number,
+                        "start_position": start_position,
+                        "end_position": end_position,
+                        "context": context,
+                    }
+                )
+
+            logger.info(
+                f'Built context for {len(results)} occurrences of phrase id {phrase_id}',
             )
 
-        logger.info(
-            f'Built context for {len(results)} occurrences of phrase id {phrase_id}',
-        )
-
-        return results
+            return results
 
     except Exception:
         logger.exception(f'Failed to build context for phrase id {phrase_id}')
         raise
-
-    finally:
-        connection.close()

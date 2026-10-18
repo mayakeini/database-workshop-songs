@@ -1,8 +1,8 @@
 import logging
 from typing import Optional
 
-from src.db import get_connection
-from src.queries.statistics_service_queries import (
+from src.db import get_database_service
+from src.queries.db_queries import (
     query_select_database_summary,
     query_select_song_statistics,
     query_select_word_length_distribution,
@@ -35,35 +35,29 @@ def get_database_summary() -> dict[str, int | float]:
     """
     logger.info("Fetching database summary statistics")
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_database_summary(cursor)
 
-        query_select_database_summary(cursor)
+            row = cursor.fetchone()
 
-        row = cursor.fetchone()
+            result = {
+                "song_count": row[0],
+                "total_words": row[1],
+                "unique_words": row[2],
+                "average_word_length": row[3] or 0,
+                "average_words_per_line": row[4] or 0,
+            }
 
-        result = {
-            "song_count": row[0],
-            "total_words": row[1],
-            "unique_words": row[2],
-            "average_word_length": row[3] or 0,
-            "average_words_per_line": row[4] or 0,
-        }
+            logger.info(f'Database summary fetched successfully: {result}')
 
-        logger.info(f'Database summary fetched successfully: {result}')
-
-        return result
+            return result
 
     except Exception:
         logger.exception(
             "Failed to fetch database summary"
         )
         raise
-
-    finally:
-        connection.close()
 
 
 def get_song_statistics(
@@ -87,38 +81,32 @@ def get_song_statistics(
     """
     logger.info(f'Fetching statistics for song id {song_id}')
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_song_statistics(cursor, song_id)
 
-        query_select_song_statistics(cursor, song_id)
+            row = cursor.fetchone()
 
-        row = cursor.fetchone()
+            if row is None:
+                logger.warning(f'Song id {song_id} was not found')
+                return None
 
-        if row is None:
-            logger.warning(f'Song id {song_id} was not found')
-            return None
+            result = {
+                "title": row[0],
+                "stanza_count": row[1],
+                "line_count": row[2],
+                "word_count": row[3],
+                "unique_word_count": row[4],
+                "average_word_length": row[5] or 0,
+            }
 
-        result = {
-            "title": row[0],
-            "stanza_count": row[1],
-            "line_count": row[2],
-            "word_count": row[3],
-            "unique_word_count": row[4],
-            "average_word_length": row[5] or 0,
-        }
+            logger.info(f'Statistics for song id {song_id} fetched successfully')
 
-        logger.info(f'Statistics for song id {song_id} fetched successfully')
-
-        return result
+            return result
 
     except Exception:
         logger.exception(f'Failed to fetch statistics for song id {song_id}')
         raise
-
-    finally:
-        connection.close()
 
 
 def get_most_frequent_words(
@@ -155,32 +143,26 @@ def get_most_frequent_words(
         f"Fetching {limit} most frequent words{f' for song id {song_id}' if song_id is not None else ''}",
     )
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_words_by_frequency(
+                cursor,
+                limit=limit,
+                song_id=song_id,
+                descending=True,
+            )
 
-        query_select_words_by_frequency(
-            cursor,
-            limit=limit,
-            song_id=song_id,
-            descending=True,
-        )
+            result = cursor.fetchall()
 
-        result = cursor.fetchall()
+            logger.info(f'Fetched {len(result)} frequent words')
 
-        logger.info(f'Fetched {len(result)} frequent words')
-
-        return result
+            return result
 
     except Exception:
         logger.exception(
             "Failed to fetch most frequent words"
         )
         raise
-
-    finally:
-        connection.close()
 
 
 def get_rarest_words(
@@ -217,32 +199,26 @@ def get_rarest_words(
         f"Fetching {limit} rarest words{f' for song id {song_id}' if song_id is not None else ''}",
     )
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_words_by_frequency(
+                cursor,
+                limit=limit,
+                song_id=song_id,
+                descending=False,
+            )
 
-        query_select_words_by_frequency(
-            cursor,
-            limit=limit,
-            song_id=song_id,
-            descending=False,
-        )
+            result = cursor.fetchall()
 
-        result = cursor.fetchall()
+            logger.info(f'Fetched {len(result)} rare words')
 
-        logger.info(f'Fetched {len(result)} rare words')
-
-        return result
+            return result
 
     except Exception:
         logger.exception(
             "Failed to fetch rarest words"
         )
         raise
-
-    finally:
-        connection.close()
 
 
 def get_word_length_distribution(
@@ -271,29 +247,23 @@ def get_word_length_distribution(
         f"Fetching word length distribution{f' for song id {song_id}' if song_id is not None else ''}",
     )
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_word_length_distribution(cursor, song_id)
 
-        query_select_word_length_distribution(cursor, song_id)
+            result = cursor.fetchall()
 
-        result = cursor.fetchall()
+            logger.info(
+                f'Fetched word length distribution with {len(result)} different lengths',
+            )
 
-        logger.info(
-            f'Fetched word length distribution with {len(result)} different lengths',
-        )
-
-        return result
+            return result
 
     except Exception:
         logger.exception(
             "Failed to fetch word length distribution"
         )
         raise
-
-    finally:
-        connection.close()
 
 
 def get_words_per_stanza(
@@ -317,24 +287,18 @@ def get_words_per_stanza(
     """
     logger.info(f'Fetching word count per stanza for song id {song_id}')
 
-    connection = get_connection()
-
     try:
-        cursor = connection.cursor()
+        with get_database_service().read_cursor() as cursor:
+            query_select_words_per_stanza(cursor, song_id)
 
-        query_select_words_per_stanza(cursor, song_id)
+            result = cursor.fetchall()
 
-        result = cursor.fetchall()
+            logger.info(
+                f'Fetched statistics for {len(result)} stanzas in song id {song_id}',
+            )
 
-        logger.info(
-            f'Fetched statistics for {len(result)} stanzas in song id {song_id}',
-        )
-
-        return result
+            return result
 
     except Exception:
         logger.exception(f'Failed to fetch word count per stanza for song id {song_id}')
         raise
-
-    finally:
-        connection.close()

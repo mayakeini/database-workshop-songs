@@ -4,6 +4,8 @@ CREATE TABLE songs (
     artist VARCHAR2(100) NOT NULL,
     album VARCHAR2(100),
     publication_year NUMBER(4) NOT NULL,
+    CONSTRAINT chk_songs_publication_year
+        CHECK (publication_year BETWEEN 1000 AND 2100),
     upload_date TIMESTAMP WITH TIME ZONE NOT NULL
 );
 

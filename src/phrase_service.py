@@ -109,12 +109,21 @@ def create_phrase(phrase_name: str, phrase_text: str) -> int:
         with get_database_service().transaction() as cursor:
             phrase_id_var = cursor.var(int)
 
-            query_insert_phrase_returning_id(
-                cursor,
-                phrase_name=phrase_name,
-                phrase_text=phrase_text,
-                phrase_id=phrase_id_var,
-            )
+            try:
+                query_insert_phrase_returning_id(
+                    cursor,
+                    phrase_name=phrase_name,
+                    phrase_text=phrase_text,
+                    phrase_id=phrase_id_var,
+                )
+            except oracledb.IntegrityError as error:
+                oracle_error = error.args[0]
+                if getattr(oracle_error, "code", None) == 1:
+                    logger.warning("Phrase name '%s' already exists", phrase_name)
+                    raise ValueError(
+                        f"A phrase named '{phrase_name}' already exists."
+                    ) from error
+                raise
 
             phrase_id = phrase_id_var.getvalue()[0]
 
@@ -339,12 +348,21 @@ def create_and_search_phrase(
     try:
         with get_database_service().transaction() as cursor:
             phrase_id_var = cursor.var(int)
-            query_insert_phrase_returning_id(
-                cursor,
-                phrase_name=phrase_name,
-                phrase_text=phrase_text,
-                phrase_id=phrase_id_var,
-            )
+            try:
+                query_insert_phrase_returning_id(
+                    cursor,
+                    phrase_name=phrase_name,
+                    phrase_text=phrase_text,
+                    phrase_id=phrase_id_var,
+                )
+            except oracledb.IntegrityError as error:
+                oracle_error = error.args[0]
+                if getattr(oracle_error, "code", None) == 1:
+                    logger.warning("Phrase name '%s' already exists", phrase_name)
+                    raise ValueError(
+                        f"A phrase named '{phrase_name}' already exists."
+                    ) from error
+                raise
             phrase_id = phrase_id_var.getvalue()[0]
 
             query_select_phrase_search_occurrences(cursor)

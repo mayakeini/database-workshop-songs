@@ -49,6 +49,47 @@ def save_uploaded_file(uploaded_file: st.runtime.uploaded_file_manager.UploadedF
         raise
 
 
+
+def validate_uploaded_txt_file(
+    uploaded_file: st.runtime.uploaded_file_manager.UploadedFile,
+) -> None:
+    """Validate that an upload is a readable UTF-8 TXT file.
+
+    Args:
+        uploaded_file: File supplied by the Streamlit uploader.
+
+    Returns:
+        None.
+
+    Raises:
+        ValueError: If the extension or file contents are unsupported.
+    """
+    filename = uploaded_file.name
+    if Path(filename).suffix.lower() != ".txt":
+        logger.warning("Rejected upload with non-TXT extension: %s", filename)
+        raise ValueError("Only .txt files are supported. Please select a TXT file.")
+
+    content = uploaded_file.getvalue()
+    if not content:
+        logger.warning("Rejected empty TXT upload: %s", filename)
+        raise ValueError("The TXT file is empty. Please select a non-empty file.")
+
+    if b"\x00" in content:
+        logger.warning("Rejected binary upload disguised as TXT: %s", filename)
+        raise ValueError("This file is not a valid text file. Please upload a UTF-8 TXT file.")
+
+    try:
+        content.decode("utf-8-sig")
+    except UnicodeDecodeError as error:
+        logger.warning("Rejected non-UTF-8 upload: %s", filename)
+        raise ValueError(
+            "The file could not be read as UTF-8 text. "
+            "Please save it as a UTF-8 TXT file and try again."
+        ) from error
+
+    logger.info("Validated TXT upload: %s", filename)
+
+
 def main() -> None:
     """
     Renders the song upload page and handles song insertion.
@@ -205,6 +246,7 @@ def main() -> None:
     temp_path: str | None = None
 
     try:
+        validate_uploaded_txt_file(uploaded_file)
         temp_path = save_uploaded_file(
             uploaded_file
         )

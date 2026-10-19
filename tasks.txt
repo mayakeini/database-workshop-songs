@@ -8,21 +8,14 @@ features that we commitment in the project planning documentation:
 
 
 error handling:
-- duplicate phrase name may show ORA error
 
-- adding twice the same word to a group may show ORA error
 
-- change group name to an existing name may show ORA error
 
-- upload a file that is not txt file leads to an error
 
 
 DB/logics problems:
-- we can create an empty group
 
-- there is no CHECK on publication year
 
-- there is no drop_schema.sql
 
 
 tests:
@@ -52,7 +45,6 @@ tests:
 
 
 IN PROGRESS MAYA:
-- in context, there is no next/previous between occurrences
 
 
 
@@ -78,4 +70,19 @@ DONE:
 
 - screen that shows all of the songs, lines and words in every song (it will work with empty search but we need a page)
 
+- in context, there is no next/previous between occurrences
+
+- duplicate phrase name may show ORA error
+
+- adding twice the same word to a group may show ORA error
+
+- change group name to an existing name may show ORA error
+
+- upload a file that is not txt file leads to an error
+
+- we can create an empty group
+
+- there is no CHECK on publication year
+
+- there is no drop_schema.sql
 

@@ -121,12 +121,13 @@ def render_create_phrase() -> None:
 
         st.rerun()
 
-    except Exception as error:
-        logger.exception(f"Failed to create phrase '{phrase_name}'")
+    except ValueError as error:
+        logger.warning("Phrase creation rejected: %s", error)
+        st.error(str(error))
 
-        st.error(
-            f"Could not create the phrase: {error}"
-        )
+    except Exception:
+        logger.exception("Failed to create phrase '%s'", phrase_name)
+        st.error("Could not create the phrase due to an unexpected error.")
 
 
 def render_phrase_details(

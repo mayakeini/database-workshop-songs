@@ -150,94 +150,94 @@ def display_song_results(
                 )
 
 def display_word_results(results: list[tuple[Any, ...]]) -> None:
-    """
-    Displays all occurrences of a searched word.
-
-    Each occurrence includes its song, stanza, line positions,
-    word position, and surrounding textual context.
+    """Display one word occurrence with Previous / Next navigation.
 
     Args:
-        results: Word occurrence rows returned from search_word().
+        results: Cached word occurrence rows from search_word().
 
     Returns:
         None.
     """
-    logger.info(f'Displaying {len(results)} word occurrences')
+    logger.info("Displaying word occurrence navigator (%s results)", len(results))
 
     if not results:
-        logger.info("No occurrences found for searched word")
         st.info("The word was not found.")
         return
+
+    current_index = st.session_state.get("word_occurrence_index", 0)
+    current_index = max(0, min(current_index, len(results) - 1))
+    st.session_state["word_occurrence_index"] = current_index
 
     st.success(
         f"Found {len(results)} occurrence"
         f"{'s' if len(results) != 1 else ''}."
     )
+    st.caption(f"Occurrence {current_index + 1} of {len(results)}")
 
-    for index, result in enumerate(results, start=1):
-        (
-            occurrence_id,
-            song_id,
-            title,
-            artist,
-            stanza_number,
-            global_line_number,
-            line_number_in_stanza,
-            position_in_line,
-            position_in_song,
-            original_token,
-        ) = result
+    (
+        occurrence_id,
+        song_id,
+        title,
+        artist,
+        stanza_number,
+        global_line_number,
+        line_number_in_stanza,
+        position_in_line,
+        position_in_song,
+        original_token,
+    ) = results[current_index]
 
-        with st.expander(
-            f"{index}. {title} — line {global_line_number}"
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.write(f"**Song:** {title}")
+        st.write(f"**Artist:** {artist}")
+
+    with col2:
+        st.write(f"**Stanza:** {stanza_number}")
+        st.write(f"**Global line:** {global_line_number}")
+        st.write(f"**Line in stanza:** {line_number_in_stanza}")
+
+    with col3:
+        st.write(f"**Position in line:** {position_in_line}")
+        st.write(f"**Position in song:** {position_in_song}")
+        st.write(f"**Original token:** {original_token}")
+
+    try:
+        context = get_context(
+            song_id=song_id,
+            global_line_number=global_line_number,
+        )
+        st.markdown("**Context:**")
+        for line_number, text in context.items():
+            if line_number == global_line_number:
+                st.markdown(f"➡️ **Line {line_number}: {text}**")
+            else:
+                st.write(f"Line {line_number}: {text}")
+    except Exception:
+        logger.exception(
+            "Failed to load context for occurrence id %s", occurrence_id
+        )
+        st.error("Could not load the context for this occurrence.")
+
+    previous_col, next_col = st.columns(2)
+    with previous_col:
+        if st.button(
+            "◀ Previous",
+            key="word_occurrence_previous",
+            disabled=current_index == 0,
         ):
-            col1, col2, col3 = st.columns(3)
+            st.session_state["word_occurrence_index"] = current_index - 1
+            st.rerun()
 
-            with col1:
-                st.write(f"**Song:** {title}")
-                st.write(f"**Artist:** {artist}")
-
-            with col2:
-                st.write(f"**Stanza:** {stanza_number}")
-                st.write(
-                    f"**Line in stanza:** "
-                    f"{line_number_in_stanza}"
-                )
-
-            with col3:
-                st.write(
-                    f"**Position in line:** {position_in_line}"
-                )
-                st.write(
-                    f"**Position in song:** {position_in_song}"
-                )
-
-            try:
-                context = get_context(
-                    song_id=song_id,
-                    global_line_number=global_line_number,
-                )
-
-                st.markdown("**Context:**")
-
-                for line_number, text in context.items():
-                    if line_number == global_line_number:
-                        st.markdown(
-                            f"➡️ **Line {line_number}: {text}**"
-                        )
-                    else:
-                        st.write(
-                            f"Line {line_number}: {text}"
-                        )
-
-            except Exception:
-                logger.exception(
-                    f'Failed to load context for occurrence id {occurrence_id}',
-                )
-
-                st.error(
-                    "Could not load the context for this occurrence."
-                )
+    with next_col:
+        if st.button(
+            "Next ▶",
+            key="word_occurrence_next",
+            disabled=current_index == len(results) - 1,
+        ):
+            st.session_state["word_occurrence_index"] = current_index + 1
+            st.rerun()
 
 
 def render_song_search() -> None:
@@ -321,11 +321,10 @@ def render_song_search() -> None:
         )
 
 def render_word_search() -> None:
-    """
-    Renders the word search interface.
+    """Render word search and persistent occurrence navigation.
 
-    Users can search for a normalized word and view all of its
-    occurrences together with their locations and context.
+    New searches replace cached results and reset navigation to the first
+    occurrence. Navigating does not repeat the word search query.
 
     Returns:
         None.
@@ -335,43 +334,39 @@ def render_word_search() -> None:
     st.subheader("Search Word")
 
     with st.form("word_search_form"):
-        word = st.text_input(
-            "Word *",
-            key="search_word",
-        )
+        word = st.text_input("Word *", key="search_word")
+        submitted = st.form_submit_button("Search Word")
 
-        submitted = st.form_submit_button(
-            "Search Word"
-        )
+    if submitted:
+        word = word.strip()
 
-    if not submitted:
+        # Clear old search results even when the new search is invalid.
+        st.session_state["word_search_results"] = None
+        st.session_state["word_occurrence_index"] = 0
+        st.session_state["word_search_error"] = None
+
+        if not word:
+            logger.warning("Word search rejected because input was empty")
+            st.session_state["word_search_error"] = "Please enter a word."
+        else:
+            logger.info("Searching for word '%s'", word)
+            try:
+                st.session_state["word_search_results"] = search_word(word)
+            except Exception:
+                logger.exception("Word search failed for '%s'", word)
+                st.session_state["word_search_error"] = (
+                    "Could not search for the word. "
+                    "Please check the application logs."
+                )
+
+    error = st.session_state.get("word_search_error")
+    if error:
+        st.error(error)
         return
 
-    word = word.strip()
-
-    if not word:
-        logger.warning(
-            "Word search rejected because the input was empty"
-        )
-
-        st.error("Please enter a word.")
-        return
-
-    logger.info(f"Searching for word '{word}'")
-
-    try:
-        results = search_word(word)
-
+    results = st.session_state.get("word_search_results")
+    if results is not None:
         display_word_results(results)
-
-    except Exception:
-        logger.exception(f"Word search failed for '{word}'")
-
-        st.error(
-            "Could not search for the word. "
-            "Please check the application logs."
-        )
-
 
 
 def render_location_search() -> None:

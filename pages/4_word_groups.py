@@ -89,6 +89,12 @@ def render_create_group() -> None:
             key=f"new_group_description_{form_version}",
         )
 
+        first_word = st.text_input(
+            "First Word *",
+            key=f"new_group_first_word_{form_version}",
+            help="Choose a word that already occurs in an uploaded song.",
+        )
+
         submitted = st.form_submit_button(
             "Create Group",
         )
@@ -98,6 +104,11 @@ def render_create_group() -> None:
 
     group_name = group_name.strip()
     description = description.strip()
+    first_word = first_word.strip()
+
+    if not first_word:
+        st.error("Please enter at least one word for the group.")
+        return
 
     if not group_name:
         logger.warning(
@@ -111,6 +122,7 @@ def render_create_group() -> None:
         group_id = create_group(
             group_name=group_name,
             description=description or None,
+            first_word=first_word,
         )
 
         logger.info(f"Group '{group_name}' created successfully with id {group_id}")
@@ -209,12 +221,15 @@ def render_group_editor(
                         "The selected group no longer exists."
                     )
 
-            except Exception as error:
-                logger.exception(f'Failed to update group id {group_id}')
-
-                st.error(
-                    f"Could not update the group: {error}"
+            except ValueError as error:
+                logger.warning(
+                    "Group update rejected for id %s: %s", group_id, error
                 )
+                st.error(str(error))
+
+            except Exception:
+                logger.exception("Unexpected group update error for id %s", group_id)
+                st.error("Could not update the group. Please try again.")
 
     st.markdown("---")
 
@@ -315,51 +330,48 @@ def render_group_words(
 
     st.markdown("### Add Word")
 
-    with st.form(
-        f"add_word_form_{group_id}"
-    ):
-        word_to_add = st.text_input(
-            "Word *",
-            key=f"word_to_add_{group_id}",
-        )
+    message_key = f"add_word_success_{group_id}"
+    success_message = st.session_state.pop(message_key, None)
+    if success_message:
+        st.success(success_message)
 
-        add_submitted = st.form_submit_button(
-            "Add Word"
+    version_key = f"add_word_form_version_{group_id}"
+    if version_key not in st.session_state:
+        st.session_state[version_key] = 0
+    version = st.session_state[version_key]
+
+    with st.form(f"add_word_form_{group_id}_{version}"):
+        word_to_add = st.text_input(
+            "Word *", key=f"word_to_add_{group_id}_{version}"
         )
+        add_submitted = st.form_submit_button("Add Word")
 
     if add_submitted:
         word_to_add = word_to_add.strip()
-
         if not word_to_add:
-            logger.warning(f'Add-word rejected for group id {group_id}: empty word')
-
-            st.error(
-                "Please enter a word."
-            )
-
+            logger.warning("Empty word rejected for group %s", group_id)
+            st.error("Please enter a word.")
         else:
             try:
-                add_word_to_group(
-                    group_id=group_id,
-                    word=word_to_add,
-                )
-
-                logger.info(f"Word '{word_to_add}' added to group id {group_id}")
-
-                st.success(
+                add_word_to_group(group_id=group_id, word=word_to_add)
+                logger.info("Word '%s' added to group %s", word_to_add, group_id)
+                st.session_state[message_key] = (
                     f"Word '{word_to_add}' added successfully."
                 )
-
+                st.session_state[version_key] += 1
                 st.rerun()
-
-            except Exception as error:
+            except ValueError as exc:
+                logger.warning(
+                    "Word '%s' rejected for group %s: %s",
+                    word_to_add, group_id, exc,
+                )
+                st.error(str(exc))
+            except Exception:
                 logger.exception(
-                    f"Failed to add word '{word_to_add}' to group id {group_id}",
+                    "Unexpected error adding '%s' to group %s",
+                    word_to_add, group_id,
                 )
-
-                st.error(
-                    f"Could not add the word: {error}"
-                )
+                st.error("Could not add the word. Please try again.")
 
     if words:
         st.markdown("### Remove Word")
@@ -410,14 +422,19 @@ def render_group_words(
                         "The selected word is no longer in the group."
                     )
 
-            except Exception as error:
-                logger.exception(
-                    f"Failed to remove word '{selected_word}' from group id {group_id}",
+            except ValueError as error:
+                logger.warning(
+                    "Cannot remove word '%s' from group %s: %s",
+                    selected_word, group_id, error,
                 )
+                st.error(str(error))
 
-                st.error(
-                    f"Could not remove the word: {error}"
+            except Exception:
+                logger.exception(
+                    "Failed to remove word '%s' from group id %s",
+                    selected_word, group_id,
                 )
+                st.error("Could not remove the word. Please try again.")
 
 
 def render_group_occurrences(

@@ -60,24 +60,43 @@ def parse_song(file_path: str) -> List[dict]:
             global_line_number += 1
             line_number_in_stanza += 1
 
+            # Punctuation-only fragments are not words. Attach them to
+            # neighboring tokens so their positions remain consecutive and
+            # the original punctuation survives line reconstruction.
             tokens = line.split()
+            words_on_line: list[dict] = []
+            leading_punctuation = ""
 
-            for position_in_line, token in enumerate(tokens, start=1):
+            for token in tokens:
                 normalized = _normalize_word(token)
-
                 if not normalized:
+                    if words_on_line:
+                        words_on_line[-1]["original_token"] += token
+                    else:
+                        leading_punctuation += token
                     continue
 
                 position_in_song += 1
-
-                occurrences.append({
+                words_on_line.append({
                     "normalized_word": normalized,
-                    "original_token": token,
+                    "original_token": leading_punctuation + token,
                     "stanza_number": stanza_number,
                     "global_line_number": global_line_number,
                     "line_number_in_stanza": line_number_in_stanza,
-                    "position_in_line": position_in_line,
+                    "position_in_line": len(words_on_line) + 1,
                     "position_in_song": position_in_song,
                 })
+                leading_punctuation = ""
+
+            # A punctuation-only line cannot be represented by the existing
+            # word-occurrence schema; it contributes no word occurrences.
+            if leading_punctuation and not words_on_line:
+                logger.warning(
+                    "Line %s in '%s' contains no searchable words; "
+                    "punctuation-only content cannot be reconstructed",
+                    line_index + 1,
+                    file_path,
+                )
+            occurrences.extend(words_on_line)
 
     return occurrences

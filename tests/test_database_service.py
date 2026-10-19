@@ -254,7 +254,49 @@ class BusinessTransactionTests(unittest.TestCase):
         self.cursor.fetchone.return_value = (123,)
         with self.assertLogs("src.group_service", level="WARNING"):
             with self.assertRaisesRegex(ValueError, "already exists"):
-                group_service.create_group("Existing group")
+                group_service.create_group("Existing group", first_word="hello")
+        self.connection.commit.assert_not_called()
+        self.connection.rollback.assert_called_once_with()
+
+    def test_create_group_requires_first_word(self):
+        """Reject empty groups before running any SQL."""
+        with self.assertRaisesRegex(ValueError, "at least one word"):
+            group_service.create_group("New group")
+        self.cursor.execute.assert_not_called()
+        self.connection.commit.assert_not_called()
+
+    def test_create_group_with_first_word_is_atomic(self):
+        """Save a new group and first membership in one transaction."""
+        self.cursor.fetchone.side_effect = [None, (42,)]
+        result = group_service.create_group("New group", first_word="hello")
+        self.assertEqual(result, 123)
+        statements = [call.args[0] for call in self.cursor.execute.call_args_list]
+        self.assertTrue(any("INSERT INTO word_groups" in sql for sql in statements))
+        self.assertTrue(any("INSERT INTO group_words" in sql for sql in statements))
+        self.connection.commit.assert_called_once_with()
+
+    def test_adding_same_word_to_group_is_friendly_error(self):
+        """Duplicate memberships do not leak an Oracle exception."""
+        self.cursor.fetchone.return_value = (42,)
+        self.cursor.fetchall.return_value = [(42, "hello")]
+        with self.assertRaisesRegex(ValueError, "already in this group"):
+            group_service.add_word_to_group(12, "HELLO")
+        self.connection.commit.assert_not_called()
+        self.connection.rollback.assert_called_once_with()
+
+    def test_renaming_group_to_existing_name_is_friendly_error(self):
+        """Case-insensitive group-name collisions are rejected."""
+        self.cursor.fetchone.return_value = (99,)
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            group_service.update_group(12, "EXISTING GROUP")
+        self.connection.commit.assert_not_called()
+        self.connection.rollback.assert_called_once_with()
+
+    def test_cannot_remove_last_group_word(self):
+        """Keep nonempty membership when removing words through the app."""
+        self.cursor.fetchall.return_value = [(42, "hello")]
+        with self.assertRaisesRegex(ValueError, "at least one word"):
+            group_service.remove_word_from_group(12, "hello")
         self.connection.commit.assert_not_called()
         self.connection.rollback.assert_called_once_with()
 

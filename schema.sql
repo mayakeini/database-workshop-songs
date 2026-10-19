@@ -154,6 +154,10 @@ CREATE INDEX ix_word_occurrences_song_line
 CREATE INDEX ix_word_occurrences_stanza
     ON word_occurrences (stanza_id);
 
+-- Enforce case-insensitive uniqueness even under concurrent inserts/updates.
+CREATE UNIQUE INDEX ux_word_groups_name_ci
+    ON word_groups (LOWER(group_name));
+
 CREATE INDEX ix_group_words_word
     ON group_words (word_id);
 

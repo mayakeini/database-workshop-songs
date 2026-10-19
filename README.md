@@ -10,20 +10,21 @@ The project implements a concordance and text retrieval system for a collection 
 
 The system allows users to:
 
-- Upload song lyrics from TXT files.
+- Upload song lyrics from UTF-8 TXT files and view stanza/line/word counts.
 - Store song metadata.
 - Parse songs into stanzas and word occurrences.
 - Search songs by metadata.
 - Search for specific words.
 - Display all occurrences of a word.
-- Display the textual context around each occurrence.
+- Display the textual context around each occurrence, with Previous/Next navigation.
 - Search by word location.
-- Browse a complete word index.
+- Browse a complete word index, filtered by song or word group.
 - Create and manage custom word groups.
 - Define phrases and search for their occurrences.
 - View textual and statistical information about the song collection.
 - Export the entire database to XML.
 - Restore the database from an XML backup.
+- Browse all songs and their stanza, line, and word counts.
 
 ## Technologies
 
@@ -97,22 +98,22 @@ The Streamlit interface provides separate pages for:
 5. Phrases
 6. Statistics
 7. Backup & Restore
+8. All Songs
 
 ## Project Structure
 
-database-workshop-songs/
-│
+```text
+database-workshop-songs-main/
 ├── app.py
 ├── README.md
 ├── requirements.txt
-├── .gitignore
-│
+├── schema.sql
+├── drop_schema.sql
+├── run_project.bat
+├── run_project.sh
 ├── src/
-│   ├── __init__.py
 │   ├── db.py
-│   ├── queries/
-│   │   ├── __init__.py
-│   │   └── db_queries.py
+│   ├── queries/db_queries.py
 │   ├── logger_config.py
 │   ├── text_parser.py
 │   ├── song_service.py
@@ -121,18 +122,19 @@ database-workshop-songs/
 │   ├── phrase_service.py
 │   ├── statistics_service.py
 │   └── xml_service.py
-│
 ├── pages/
-│   ├── 1_Upload_Song.py
-│   ├── 2_Search.py
-│   ├── 3_Word_Index.py
-│   ├── 4_Word_Groups.py
-│   ├── 5_Phrases.py
-│   ├── 6_Statistics.py
-│   └── 7_Backup_Restore.py
-│
-└── sample_songs/
-    └── example.txt
+│   ├── 1_upload_song.py
+│   ├── 2_search.py
+│   ├── 3_word_index.py
+│   ├── 4_word_groups.py
+│   ├── 5_phrases.py
+│   ├── 6_statistics.py
+│   ├── 7_backup_restore.py
+│   └── 8_all_songs.py
+├── sample_songs/
+├── backup/
+└── tests/
+```
 
 ## Database Schema
 
@@ -222,7 +224,7 @@ world       stanza=1 line=1 position=3
 this        stanza=1 line=2 position=1
 love        stanza=2 line=3 position=1
 
-The original token is also preserved, allowing punctuation to be reconstructed.
+The original token is also preserved, allowing common punctuation to be reconstructed. Standalone punctuation adjacent to words is attached to a neighboring word without consuming a word position. The system normalizes whitespace on reconstruction and cannot preserve punctuation-only lines because it does not store original line text.
 
 For example:
 
@@ -282,7 +284,7 @@ For each occurrence, the system displays the location in multiple forms, includi
 - Line number inside the stanza
 - Position inside the line
 
-The index can also be filtered by song and exported to CSV.
+The index can also be filtered by song and word group, and exported to CSV.
 
 ## Word Groups
 
@@ -323,11 +325,11 @@ Available statistics include:
 - Number of lines
 - Total number of words
 - Number of unique words
-- Average word length
+- Average word length (computed from normalized word text)
 - Average number of words per line
 - Most frequent words
 - Rarest words
-- Word length distribution
+- Word length distribution (computed dynamically; there is no word-length database column)
 - Number of words per stanza
 
 Charts are displayed using Altair.
@@ -410,12 +412,25 @@ Both contexts close the cursor and return the connection to the pool. New Oracle
 sessions receive the existing timezone setup. Song uploads and XML restores each
 keep all their writes in a single transaction.
 
-Run the database service and transaction regression tests without a running
-Oracle database:
+Run the automated regression tests after installing `requirements.txt` (the mocked service tests do not require a running Oracle database):
 
 ```sh
 python -m unittest discover -s tests -v
 ```
+
+## Database schema lifecycle
+
+- `schema.sql` creates all eight tables, their foreign keys, the publication-year
+  check, and a case-insensitive unique index on `LOWER(word_groups.group_name)`.
+- `drop_schema.sql` removes project tables and **permanently deletes all data**.
+  Run it only on the intended project schema.
+- For an existing database created before the case-insensitive index was added,
+  run `CREATE UNIQUE INDEX ux_word_groups_name_ci ON word_groups (LOWER(group_name));`
+  after resolving any case-insensitive duplicate names. Editing `schema.sql`
+  alone does not modify existing tables.
+- Oracle constraints cannot generally enforce that every group has at least one
+  child row. The app enforces a required first word and prevents removing the
+  last member; database maintenance outside the app must preserve this rule.
 
 ## Installation
 
@@ -447,12 +462,12 @@ The application user must have the required permissions to access and modify the
 
 ## Running the Application
 
-Make sure Oracle Database is running.
+Make sure Oracle Database is running. Use `run_project.bat` on Windows or `bash run_project.sh` on Linux for the automated local setup.
 
-Then start Streamlit:
+Or start Streamlit manually:
 
 python -m streamlit run app.py 
-if it doesn't work try:
+If it does not work on Windows, try:
 .\.venv\Scripts\python.exe -m streamlit run app.py
 
 The application will usually open at:

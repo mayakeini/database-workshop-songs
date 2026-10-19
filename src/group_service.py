@@ -82,12 +82,20 @@ def create_group(
 
             group_id_var = cursor.var(int)
 
-            query_insert_group_returning_id(
-                cursor,
-                group_name=group_name,
-                description=description,
-                group_id=group_id_var,
-            )
+            try:
+                query_insert_group_returning_id(
+                    cursor,
+                    group_name=group_name,
+                    description=description,
+                    group_id=group_id_var,
+                )
+            except oracledb.IntegrityError as error:
+                if error.args and getattr(error.args[0], "code", None) == 1:
+                    logger.warning("Oracle rejected duplicate group name '%s'", group_name)
+                    raise ValueError(
+                        f"A group named '{group_name}' already exists."
+                    ) from error
+                raise
 
             group_id = group_id_var.getvalue()[0]
             query_insert_group_word(cursor, group_id, int(first_word_row[0]))

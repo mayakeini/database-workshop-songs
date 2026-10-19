@@ -14,6 +14,7 @@ from src.queries.db_queries import (
     query_select_word_id_by_text,
 )
 from src.text_parser import parse_song
+from src.phrase_service import refresh_existing_phrases_for_song
 
 logger = logging.getLogger(__name__)
 
@@ -199,6 +200,16 @@ def insert_song(
                         "original_token"
                     ],
                 )
+
+            updated_phrase_occurrences = refresh_existing_phrases_for_song(
+                cursor=cursor,
+                song_id=song_id,
+            )
+            logger.info(
+                "Added %s existing phrase occurrences for song id %s",
+                updated_phrase_occurrences,
+                song_id,
+            )
 
         logger.info(
             f"Song inserted successfully: '{title}' ({len(occurrences)} occurrences)",

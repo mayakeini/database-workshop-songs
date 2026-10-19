@@ -1,5 +1,10 @@
 """All SQL query helpers used by the application services."""
 
+import logging
+import oracledb
+
+logger = logging.getLogger(__name__)
+
 
 # Session setup
 
@@ -345,7 +350,17 @@ def query_search_word_occurrences(cursor, word):
     )
 
 
-def query_select_word_index(cursor, song_id=None):
+def query_select_word_index(cursor, song_id: int | None = None, group_id: int | None = None) -> None:
+    """Execute a word occurrence index query with optional song and group filters.
+
+    Args:
+        cursor: An open Oracle database cursor.
+        song_id: Limit results to this song, or None for all songs.
+        group_id: Limit results to words belonging to this group, or None for all groups.
+
+    Returns:
+        None. Query results remain available on the supplied cursor.
+    """
     query = """
         SELECT
             w.text,
@@ -356,27 +371,25 @@ def query_select_word_index(cursor, song_id=None):
             wo.line_number_in_stanza,
             wo.position_in_line
         FROM words w
-        JOIN word_occurrences wo
-            ON w.word_id = wo.word_id
-        JOIN songs s
-            ON wo.song_id = s.song_id
-        JOIN stanzas st
-            ON wo.stanza_id = st.stanza_id
-    """
-    params = {}
-
-    if song_id is not None:
-        query += " WHERE s.song_id = :song_id"
-        params["song_id"] = song_id
-
-    query += """
+        JOIN word_occurrences wo ON w.word_id = wo.word_id
+        JOIN songs s ON wo.song_id = s.song_id
+        JOIN stanzas st ON wo.stanza_id = st.stanza_id
+        WHERE (:song_id IS NULL OR s.song_id = :song_id)
+          AND (
+              :group_id IS NULL
+              OR EXISTS (
+                  SELECT 1
+                  FROM group_words gw
+                  WHERE gw.group_id = :group_id
+                    AND gw.word_id = w.word_id
+              )
+          )
         ORDER BY
             w.text,
             s.song_id,
             wo.position_in_song
     """
-
-    cursor.execute(query, params)
+    cursor.execute(query, {"song_id": song_id, "group_id": group_id})
 
 
 def query_select_line_tokens_by_stanza_position(
@@ -603,6 +616,29 @@ def query_select_phrase_search_occurrences(cursor):
             wo.global_line_number,
             wo.position_in_line
         """
+    )
+
+
+def query_select_song_word_occurrences_for_phrases(
+    cursor: oracledb.Cursor,
+    song_id: int,
+) -> None:
+    """Select normalized words and locations from one song for phrase matching."""
+    logger.debug("Loading occurrences for phrase matching in song %s", song_id)
+    cursor.execute(
+        """
+        SELECT
+            wo.occurrence_id,
+            wo.song_id,
+            wo.global_line_number,
+            wo.position_in_line,
+            w.text
+        FROM word_occurrences wo
+        JOIN words w ON w.word_id = wo.word_id
+        WHERE wo.song_id = :song_id
+        ORDER BY wo.global_line_number, wo.position_in_line
+        """,
+        song_id=song_id,
     )
 
 

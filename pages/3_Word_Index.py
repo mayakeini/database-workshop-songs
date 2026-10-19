@@ -5,6 +5,7 @@ from typing import Any
 
 import streamlit as st
 
+from src.group_service import get_groups
 from src.logger_config import setup_logger
 from src.search_service import get_word_index, search_songs
 
@@ -49,6 +50,22 @@ def get_song_options() -> dict[str, int]:
             "Failed to fetch songs for word index filter"
         )
         raise
+
+
+def get_group_options() -> dict[str, int]:
+    """Load named word groups for filtering the word index.
+
+    Returns:
+        A mapping from group names to group IDs.
+
+    Raises:
+        Exception: If fetching the word groups fails.
+    """
+    logger.info("Fetching word groups for word index filter")
+    groups = get_groups()
+    options = {group_name: group_id for group_id, group_name, *_ in groups}
+    logger.info("Fetched %s word groups for word index filter", len(options))
+    return options
 
 
 def convert_index_to_rows(
@@ -137,7 +154,7 @@ def main() -> None:
     Renders the Word Index page.
 
     The page displays all indexed words and their locations.
-    Users can optionally filter the index by song and export
+    Users can filter the index by song and/or word group and export
     the displayed results to CSV.
 
     Returns:
@@ -154,10 +171,12 @@ def main() -> None:
 
     try:
         song_options = get_song_options()
+        group_options = get_group_options()
 
     except Exception:
+        logger.exception("Failed to load word index filter options")
         st.error(
-            "Could not load the available songs."
+            "Could not load the available songs or word groups."
         )
         return
 
@@ -175,11 +194,27 @@ def main() -> None:
         selected_song_label
     ]
 
-    logger.info(f'Word index filter selected: {selected_song_label}')
+    group_filter_options = {
+        "All Groups / All Words": None,
+        **group_options,
+    }
+    selected_group_label = st.selectbox(
+        "Filter by Word Group",
+        options=list(group_filter_options.keys()),
+        key="index_group_filter",
+    )
+    selected_group_id = group_filter_options[selected_group_label]
+
+    logger.info(
+        "Word index filters selected: song=%s, group=%s",
+        selected_song_label,
+        selected_group_label,
+    )
 
     try:
         results = get_word_index(
             song_id=selected_song_id,
+            group_id=selected_group_id,
         )
 
         rows = convert_index_to_rows(results)

@@ -1,12 +1,5 @@
 must have:
 problems:
-- search a song by its location in the UI.
-    there are relevant methods in the BE but this is not a functionality in the UI.
-
-- filter a word by group and by index
-
-- update existing phrases while uploading new songs
-
 - create a phrase creating a phrase and then commit, then searching and then opens transactions for saving occurrences. if the second or third part fail,  the phrase stays in the DB. its not good.
 
 - run_project.sh is not compatible to the windows version (.bat)
@@ -59,3 +52,23 @@ tests:
 - cascade of delete sond
 
 - real XML round-trip: export -> clear -> restore -> comparison
+
+
+
+
+
+IN PROGRESS MAYA:
+
+
+
+IN PROGRESS ROIE:
+
+
+
+DONE:
+- search a song by its location in the UI.
+    there are relevant methods in the BE but this is not a functionality in the UI.
+
+- filter a word by group and by index
+
+- update existing phrases while uploading new songs

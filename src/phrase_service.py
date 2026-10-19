@@ -1,3 +1,4 @@
+import oracledb
 import logging
 from typing import List, Tuple
 
@@ -11,10 +12,76 @@ from src.queries.db_queries import (
     query_select_phrase_occurrences,
     query_select_phrase_search_occurrences,
     query_select_phrases,
+    query_select_song_word_occurrences_for_phrases,
 )
 from src.text_parser import _normalize_word
 
 logger = logging.getLogger(__name__)
+
+
+def refresh_existing_phrases_for_song(
+    cursor: oracledb.Cursor,
+    song_id: int,
+) -> int:
+    """Add occurrences of every existing phrase found in a newly uploaded song.
+
+    The caller owns the transaction. This method must run with the SAME cursor
+    used to insert the song so all changes commit or roll back together.
+    Existing occurrences in other songs are left untouched.
+
+    Args:
+        cursor: The open cursor from the song upload transaction.
+        song_id: Database ID of the newly inserted song.
+
+    Returns:
+        Number of newly inserted phrase occurrences.
+    """
+    logger.info("Updating existing phrases for new song id %s", song_id)
+    query_select_phrases(cursor)
+    phrases = [(row[0], row[2]) for row in cursor.fetchall()]
+    if not phrases:
+        logger.info("No existing phrases to update for song id %s", song_id)
+        return 0
+
+    query_select_song_word_occurrences_for_phrases(cursor, song_id)
+    rows = cursor.fetchall()
+    inserted_count = 0
+
+    for phrase_id, phrase_text in phrases:
+        words = [
+            normalized
+            for token in phrase_text.split()
+            if (normalized := _normalize_word(token))
+        ]
+        if not words:
+            logger.warning("Skipping phrase id %s without valid words", phrase_id)
+            continue
+
+        for index in range(len(rows) - len(words) + 1):
+            candidate = rows[index:index + len(words)]
+            if [row[4] for row in candidate] != words:
+                continue
+            first_line = candidate[0][2]
+            if any(row[2] != first_line for row in candidate):
+                continue
+            first_position = candidate[0][3]
+            if any(row[3] != first_position + offset for offset, row in enumerate(candidate)):
+                continue
+
+            query_insert_phrase_occurrence(
+                cursor,
+                phrase_id=phrase_id,
+                song_id=song_id,
+                start_occurrence_id=candidate[0][0],
+                end_occurrence_id=candidate[-1][0],
+            )
+            inserted_count += 1
+
+    logger.info(
+        "Updated %s phrases with %s occurrences in new song id %s",
+        len(phrases), inserted_count, song_id,
+    )
+    return inserted_count
 
 
 def create_phrase(phrase_name: str, phrase_text: str) -> int:

@@ -10,6 +10,9 @@ from src.search_service import (
     search_songs,
     search_word,
     get_context,
+    find_line_by_global_number,
+    find_line_by_stanza_position,
+    find_word_by_position,
 )
 from src.song_service import get_song_text
 
@@ -370,12 +373,160 @@ def render_word_search() -> None:
         )
 
 
+
+def render_location_search() -> None:
+    """
+    Render the location-based search interface.
+
+    Users can find a line using its global line number or
+    its stanza position, or find a word using its position
+    within a global line.
+
+    Returns:
+        None.
+    """
+    logger.info("Rendering location search")
+
+    st.subheader("Search by Location")
+
+    try:
+        songs = search_songs()
+    except Exception:
+        logger.exception("Failed to load songs for location search")
+        st.error("Could not load the song list.")
+        return
+
+    if not songs:
+        st.info("Upload a song before searching by location.")
+        return
+
+    song_options = {
+        f"{title} — {artist} (ID: {song_id})": song_id
+        for song_id, title, artist, album, year, upload_date in songs
+    }
+
+    selected_song = st.selectbox(
+        "Select Song",
+        options=list(song_options.keys()),
+        key="location_song",
+    )
+
+    search_mode = st.radio(
+        "Search Type",
+        options=[
+            "Global Line Number",
+            "Stanza and Line",
+            "Word Position",
+        ],
+        key="location_search_mode",
+    )
+
+    with st.form("location_search_form"):
+        global_line_number = None
+        stanza_number = None
+        line_number_in_stanza = None
+        position_in_line = None
+
+        if search_mode in ("Global Line Number", "Word Position"):
+            global_line_number = st.number_input(
+                "Global Line Number",
+                min_value=1,
+                value=1,
+                step=1,
+            )
+
+        if search_mode == "Stanza and Line":
+            stanza_number = st.number_input(
+                "Stanza Number",
+                min_value=1,
+                value=1,
+                step=1,
+            )
+
+            line_number_in_stanza = st.number_input(
+                "Line Number in Stanza",
+                min_value=1,
+                value=1,
+                step=1,
+            )
+
+        if search_mode == "Word Position":
+            position_in_line = st.number_input(
+                "Position in Line",
+                min_value=1,
+                value=1,
+                step=1,
+            )
+
+        submitted = st.form_submit_button("Find Location")
+
+    if not submitted:
+        return
+
+    song_id = song_options[selected_song]
+
+    logger.info(
+        "Location search submitted: song_id=%s, mode=%s",
+        song_id,
+        search_mode,
+    )
+
+    try:
+        if search_mode == "Global Line Number":
+            result = find_line_by_global_number(
+                song_id=song_id,
+                global_line_number=int(global_line_number),
+            )
+
+        elif search_mode == "Stanza and Line":
+            result = find_line_by_stanza_position(
+                song_id=song_id,
+                stanza_number=int(stanza_number),
+                line_number_in_stanza=int(line_number_in_stanza),
+            )
+
+        else:
+            result = find_word_by_position(
+                song_id=song_id,
+                global_line_number=int(global_line_number),
+                position_in_line=int(position_in_line),
+            )
+
+        if result is None:
+            logger.info(
+                "No result for location search: song_id=%s",
+                song_id,
+            )
+            st.info("No text was found at the specified location.")
+            return
+
+        st.success("Location found.")
+
+        if search_mode == "Word Position":
+            normalized_word, original_token = result
+
+            st.write(f"**Word:** {normalized_word}")
+            st.write(f"**Original Token:** {original_token}")
+
+        else:
+            st.write("**Line Text:**")
+            st.text(result)
+
+    except Exception:
+        logger.exception(
+            "Location search failed for song_id=%s",
+            song_id,
+        )
+        st.error(
+            "Could not search the specified location. "
+            "Please check the application logs."
+        )
+
+
+
 def main() -> None:
     """
-    Renders the Search page of the concordance system.
-
-    The page contains separate interfaces for metadata-based
-    song search and word-occurrence search.
+    Render the Search page with song, word, and location searches.
 
     Returns:
         None.
@@ -384,10 +535,11 @@ def main() -> None:
 
     st.title("Search")
 
-    song_tab, word_tab = st.tabs(
+    song_tab, word_tab, location_tab = st.tabs(
         [
             "Search Songs",
             "Search Word",
+            "Search by Location",
         ]
     )
 
@@ -396,6 +548,9 @@ def main() -> None:
 
     with word_tab:
         render_word_search()
+
+    with location_tab:
+        render_location_search()
 
     logger.info("Search page rendered successfully")
 

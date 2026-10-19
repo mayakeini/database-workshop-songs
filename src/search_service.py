@@ -78,17 +78,29 @@ def get_context(song_id: int, global_line_number: int) -> dict:
         }
 
 
-def get_word_index(song_id=None) -> dict:
-    """
-    Get word index by song id
-    :param song_id: the song id, None by default
-    :return: int of the word index
-    """
-    logger.info(fr"Get the word index of song id {song_id}")
-    with get_database_service().read_cursor() as cursor:
-        query_select_word_index(cursor, song_id)
+def get_word_index(
+    song_id: int | None = None,
+    group_id: int | None = None,
+) -> list[tuple]:
+    """Return word occurrences optionally filtered by song and word group.
 
-        return cursor.fetchall()
+    Args:
+        song_id: Song to filter by, or None for all songs.
+        group_id: Word group to filter by, or None for all words.
+
+    Returns:
+        Occurrence rows containing word, song and location fields.
+    """
+    logger.info(
+        "Fetching word index: song_id=%s, group_id=%s",
+        song_id,
+        group_id,
+    )
+    with get_database_service().read_cursor() as cursor:
+        query_select_word_index(cursor, song_id=song_id, group_id=group_id)
+        rows = cursor.fetchall()
+        logger.info("Fetched %s word index rows", len(rows))
+        return rows
 
 
 def find_line_by_global_number(song_id: int, global_line_number:int) -> dict:

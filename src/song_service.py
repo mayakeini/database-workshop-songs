@@ -12,6 +12,8 @@ from src.queries.db_queries import (
     query_select_line_tokens_by_global_number,
     query_select_song_text_rows,
     query_select_word_id_by_text,
+    query_select_uploaded_song_summary,
+    query_select_all_songs_with_counts,
 )
 from src.text_parser import parse_song
 from src.phrase_service import refresh_existing_phrases_for_song
@@ -404,4 +406,69 @@ def song_exists(
 
     except Exception:
         logger.exception(f"Failed to check whether song '{title}' already exists")
+        raise
+
+
+def get_uploaded_song_summary(song_id: int) -> dict[str, int]:
+    """Return saved stanza, line and word occurrence counts for one song.
+
+    Args:
+        song_id: ID of the successfully uploaded song.
+
+    Returns:
+        Mapping with the keys stanzas, lines and words.
+
+    Raises:
+        Exception: If the database read fails.
+    """
+    logger.info("Getting upload summary for song id %s", song_id)
+    try:
+        with get_database_service().read_cursor() as cursor:
+            query_select_uploaded_song_summary(cursor, song_id)
+            row = cursor.fetchone()
+        result = {
+            "stanzas": int(row[0]) if row else 0,
+            "lines": int(row[1]) if row else 0,
+            "words": int(row[2]) if row else 0,
+        }
+        logger.info("Upload summary for song id %s: %s", song_id, result)
+        return result
+    except Exception:
+        logger.exception("Failed to load upload summary for song id %s", song_id)
+        raise
+
+
+def get_all_songs_with_counts() -> list[dict[str, str | int | None]]:
+    """Fetch every song with counts of saved stanzas, lines and word tokens.
+
+    Returns:
+        Rows containing metadata and counts for each song, including songs
+        with no occurrences (reported as zero).
+
+    Raises:
+        Exception: If the database read fails.
+    """
+    logger.info("Loading all songs with saved text counts")
+    try:
+        with get_database_service().read_cursor() as cursor:
+            query_select_all_songs_with_counts(cursor)
+            rows = cursor.fetchall()
+
+        results = [
+            {
+                "song_id": int(song_id),
+                "title": title,
+                "artist": artist,
+                "album": album,
+                "publication_year": int(year),
+                "stanzas": int(stanzas),
+                "lines": int(lines),
+                "words": int(words),
+            }
+            for song_id, title, artist, album, year, stanzas, lines, words in rows
+        ]
+        logger.info("Loaded %s songs with counts", len(results))
+        return results
+    except Exception:
+        logger.exception("Failed to load all songs with counts")
         raise

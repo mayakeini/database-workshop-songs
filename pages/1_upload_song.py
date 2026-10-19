@@ -6,7 +6,7 @@ from pathlib import Path
 import streamlit as st
 
 from src.logger_config import setup_logger
-from src.song_service import insert_song
+from src.song_service import insert_song, get_uploaded_song_summary
 
 setup_logger()
 
@@ -74,6 +74,9 @@ def main() -> None:
     if "uploaded_song_id" not in st.session_state:
         st.session_state.uploaded_song_id = None
 
+    if "uploaded_song_summary" not in st.session_state:
+        st.session_state.uploaded_song_summary = None
+
     st.title("Upload Song")
 
     st.write(
@@ -130,6 +133,14 @@ def main() -> None:
             f"Song ID: {st.session_state.uploaded_song_id}"
         )
 
+        summary = st.session_state.uploaded_song_summary
+        if summary is not None:
+            st.write("**Upload Summary**")
+            col_stanzas, col_lines, col_words = st.columns(3)
+            col_stanzas.metric("Stanzas", summary["stanzas"])
+            col_lines.metric("Lines", summary["lines"])
+            col_words.metric("Words", summary["words"])
+
         if st.button(
             "Upload Another Song",
             key="upload_another_song_button",
@@ -138,6 +149,7 @@ def main() -> None:
 
             st.session_state.song_uploaded_successfully = False
             st.session_state.uploaded_song_id = None
+            st.session_state.uploaded_song_summary = None
 
             for key in [
                 "song_title",
@@ -213,8 +225,20 @@ def main() -> None:
 
         logger.info(f"Song '{title}' uploaded successfully with id {song_id}")
 
+        # The upload has committed. Fetch the persisted counts for display.
         st.session_state.song_uploaded_successfully = True
         st.session_state.uploaded_song_id = song_id
+
+        try:
+            st.session_state.uploaded_song_summary = get_uploaded_song_summary(
+                song_id
+            )
+        except Exception:
+            logger.exception(
+                "Song id %s uploaded, but summary could not be loaded",
+                song_id,
+            )
+            st.session_state.uploaded_song_summary = None
 
         st.rerun()
 

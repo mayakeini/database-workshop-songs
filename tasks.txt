@@ -1,16 +1,10 @@
 must have:
 problems:
-- create a phrase creating a phrase and then commit, then searching and then opens transactions for saving occurrences. if the second or third part fail,  the phrase stays in the DB. its not good.
-
-- run_project.sh is not compatible to the windows version (.bat)
 
 
 features that we commitment in the project planning documentation:
-- upload needs to show summerize of the number of stanzas, lines and words that recieved
 
-- screen that shows all of the songs, lines and words in every song (it will work with empty search but we need a page)
 
-- in context, there is no next/previous between occurrences
 
 
 error handling:
@@ -58,6 +52,9 @@ tests:
 
 
 IN PROGRESS MAYA:
+- in context, there is no next/previous between occurrences
+
+
 
 
 
@@ -72,3 +69,13 @@ DONE:
 - filter a word by group and by index
 
 - update existing phrases while uploading new songs
+
+- create a phrase creating a phrase and then commit, then searching and then opens transactions for saving occurrences. if the second or third part fail,  the phrase stays in the DB. its not good.
+
+- run_project.sh is not compatible to the windows version (.bat)
+
+- upload needs to show summerize of the number of stanzas, lines and words that recieved
+
+- screen that shows all of the songs, lines and words in every song (it will work with empty search but we need a page)
+
+

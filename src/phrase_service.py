@@ -302,41 +302,93 @@ def create_and_search_phrase(
     phrase_name: str,
     phrase_text: str,
 ) -> int:
-    """
-    Creates a phrase, searches for all of its occurrences,
-    and stores the found occurrences in the database.
+    """Create a phrase and all its occurrences as one atomic transaction.
+
+    Searches consecutive normalized words within the same song and line.
+    The database service commits once, after all inserts succeed, and rolls
+    back the phrase definition and every occurrence if any step fails.
 
     Args:
-        phrase_name: A unique name for the phrase.
-        phrase_text: The phrase to search for.
+        phrase_name: Unique name for the new phrase.
+        phrase_text: Text whose consecutive occurrences should be stored.
 
     Returns:
-        The ID of the created phrase.
+        ID of the newly created phrase.
 
     Raises:
-        ValueError: If the phrase text is invalid.
-        Exception: If any database operation fails.
+        ValueError: If the name or phrase contains no usable text.
+        Exception: If any query or insert fails (the transaction is rolled back).
     """
-    logger.info(f"Starting creation and search for phrase '{phrase_name}'")
+    phrase_name = phrase_name.strip()
+    phrase_text = phrase_text.strip()
 
-    phrase_id = create_phrase(
-        phrase_name=phrase_name,
-        phrase_text=phrase_text,
-    )
+    normalized_words = [
+        normalized
+        for token in phrase_text.split()
+        if (normalized := _normalize_word(token))
+    ]
+    if not phrase_name:
+        logger.warning("Phrase creation rejected: empty name")
+        raise ValueError("Phrase name cannot be empty")
+    if not normalized_words:
+        logger.warning("Phrase creation rejected: no searchable words")
+        raise ValueError("Phrase contains no valid words")
 
-    occurrences = find_phrase_occurrences(
-        phrase_id=phrase_id,
-        phrase_text=phrase_text,
-    )
+    logger.info("Creating phrase '%s' and searching all occurrences atomically", phrase_name)
 
-    save_phrase_occurrences(
-        phrase_id=phrase_id,
-        occurrences=occurrences,
-    )
+    try:
+        with get_database_service().transaction() as cursor:
+            phrase_id_var = cursor.var(int)
+            query_insert_phrase_returning_id(
+                cursor,
+                phrase_name=phrase_name,
+                phrase_text=phrase_text,
+                phrase_id=phrase_id_var,
+            )
+            phrase_id = phrase_id_var.getvalue()[0]
 
-    logger.info(f"Finished processing phrase '{phrase_name}'")
+            query_select_phrase_search_occurrences(cursor)
+            rows = cursor.fetchall()
+            phrase_length = len(normalized_words)
+            saved_count = 0
 
-    return phrase_id
+            for index in range(len(rows) - phrase_length + 1):
+                candidate = rows[index:index + phrase_length]
+                if [row[4] for row in candidate] != normalized_words:
+                    continue
+
+                first_song_id = candidate[0][1]
+                first_line_number = candidate[0][2]
+                first_position = candidate[0][3]
+
+                if any(
+                    row[1] != first_song_id
+                    or row[2] != first_line_number
+                    or row[3] != first_position + offset
+                    for offset, row in enumerate(candidate)
+                ):
+                    continue
+
+                query_insert_phrase_occurrence(
+                    cursor,
+                    phrase_id=phrase_id,
+                    song_id=first_song_id,
+                    start_occurrence_id=candidate[0][0],
+                    end_occurrence_id=candidate[-1][0],
+                )
+                saved_count += 1
+
+        logger.info(
+            "Created phrase '%s' (id=%s) with %s occurrences in one transaction",
+            phrase_name,
+            phrase_id,
+            saved_count,
+        )
+        return phrase_id
+
+    except Exception:
+        logger.exception("Atomic phrase creation failed for '%s'", phrase_name)
+        raise
 
 def get_phrases() -> list[tuple[int, str, str, object]]:
     """

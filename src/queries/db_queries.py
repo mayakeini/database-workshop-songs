@@ -1099,3 +1099,52 @@ def query_insert_phrase_for_xml_restore(
         creation_date=creation_date,
         phrase_id=phrase_id,
     )
+
+
+def query_select_uploaded_song_summary(cursor: oracledb.Cursor, song_id: int) -> None:
+    """Select persisted stanza, line and word counts for a single song."""
+    logger.info("Selecting upload summary for song id %s", song_id)
+    cursor.execute(
+        """
+        SELECT COUNT(DISTINCT stanza_id) AS stanza_count,
+               COUNT(DISTINCT global_line_number) AS line_count,
+               COUNT(*) AS word_count
+        FROM word_occurrences
+        WHERE song_id = :song_id
+        """,
+        song_id=song_id,
+    )
+
+
+def query_select_all_songs_with_counts(cursor: oracledb.Cursor) -> None:
+    """Select each song and its persisted stanza, line and word counts.
+
+    Args:
+        cursor: Open Oracle cursor managed by the calling service.
+
+    Returns:
+        None. The caller fetches the result set from cursor.
+    """
+    logger.info("Selecting all songs with their stanza, line and word counts")
+    cursor.execute(
+        """
+        SELECT
+            s.song_id,
+            s.title,
+            s.artist,
+            s.album,
+            s.publication_year,
+            COUNT(DISTINCT wo.stanza_id) AS stanza_count,
+            COUNT(DISTINCT wo.global_line_number) AS line_count,
+            COUNT(wo.occurrence_id) AS word_count
+        FROM songs s
+        LEFT JOIN word_occurrences wo ON wo.song_id = s.song_id
+        GROUP BY
+            s.song_id,
+            s.title,
+            s.artist,
+            s.album,
+            s.publication_year
+        ORDER BY LOWER(s.title), LOWER(s.artist), s.song_id
+        """
+    )

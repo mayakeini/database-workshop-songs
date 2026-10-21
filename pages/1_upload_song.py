@@ -16,54 +16,32 @@ logger = logging.getLogger(__name__)
 def save_uploaded_file(uploaded_file: st.runtime.uploaded_file_manager.UploadedFile) -> str:
     """
     Saves an uploaded Streamlit file to a temporary local file.
-
-    Args:
-        uploaded_file: The TXT file uploaded by the user.
-
-    Returns:
-        The path of the temporary file.
-
-    Raises:
-        Exception: If saving the uploaded file fails.
+    :param uploaded_file: The TXT file uploaded by the user.
+    :return: str of the path of the temporary file.
     """
     logger.info(f"Saving uploaded file '{uploaded_file.name}' temporarily")
-
     try:
         suffix = Path(uploaded_file.name).suffix
-
-        with tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix=suffix,
-        ) as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix,) as temp_file:
             temp_file.write(uploaded_file.getbuffer())
             temp_path = temp_file.name
 
-        logger.info(
-            f"Uploaded file '{uploaded_file.name}' saved temporarily at '{temp_path}'",
-        )
-
+        logger.info(f"Uploaded file '{uploaded_file.name}' saved temporarily at '{temp_path}'")
         return temp_path
 
-    except Exception:
-        logger.exception(f"Failed to save uploaded file '{uploaded_file.name}'")
+    except Exception as e:
+        logger.error(f"Failed to save uploaded file '{uploaded_file.name}' due to '{e}'")
         raise
 
 
 
-def validate_uploaded_txt_file(
-    uploaded_file: st.runtime.uploaded_file_manager.UploadedFile,
-) -> None:
-    """Validate that an upload is a readable UTF-8 TXT file.
-
-    Args:
-        uploaded_file: File supplied by the Streamlit uploader.
-
-    Returns:
-        None.
-
-    Raises:
-        ValueError: If the extension or file contents are unsupported.
+def validate_uploaded_txt_file(uploaded_file: st.runtime.uploaded_file_manager.UploadedFile) -> None:
     """
+    Validate that an upload is a readable UTF-8 TXT file.
+    :param uploaded_file: File supplied by the Streamlit uploader.
+    :return: None
+    """
+    logger.info("Validating uploaded TXT file")
     filename = uploaded_file.name
     if Path(filename).suffix.lower() != ".txt":
         logger.warning("Rejected upload with non-TXT extension: %s", filename)
@@ -92,20 +70,13 @@ def validate_uploaded_txt_file(
 
 def main() -> None:
     """
-    Renders the song upload page and handles song insertion.
-
-    The page allows the user to enter song metadata, upload a TXT file,
-    and insert the song into the database.
-
-    After a successful upload, the input fields are disabled and a
+    Renders the song upload page and handles song insertion. The page allows the user to enter song metadata, upload
+    a TXT file, and insert the song into the database. After a successful upload, the input fields are disabled and a
     success message is displayed. The user can then reset the page
     and upload another song.
-
-    Returns:
-        None.
+    :return: None
     """
     logger.info("Rendering song upload page")
-
     if "file_uploader_key" not in st.session_state:
         st.session_state.file_uploader_key = 0
 
@@ -119,30 +90,26 @@ def main() -> None:
         st.session_state.uploaded_song_summary = None
 
     st.title("Upload Song")
-
-    st.write(
-        "Upload a TXT file containing an English song "
-        "and provide its metadata."
-    )
+    st.write("Upload a TXT file containing an English song and provide its metadata.")
 
     current_year = datetime.now().year
 
     title = st.text_input(
         "Song Title *",
         key="song_title",
-        disabled=st.session_state.song_uploaded_successfully,
+        disabled=st.session_state.song_uploaded_successfully
     )
 
     artist = st.text_input(
         "Artist *",
         key="song_artist",
-        disabled=st.session_state.song_uploaded_successfully,
+        disabled=st.session_state.song_uploaded_successfully
     )
 
     album = st.text_input(
         "Album",
         key="song_album",
-        disabled=st.session_state.song_uploaded_successfully,
+        disabled=st.session_state.song_uploaded_successfully
     )
 
     publication_year = st.number_input(
@@ -152,27 +119,24 @@ def main() -> None:
         value=current_year,
         step=1,
         key="song_publication_year",
-        disabled=st.session_state.song_uploaded_successfully,
+        disabled=st.session_state.song_uploaded_successfully
     )
 
     uploaded_file = st.file_uploader(
         "Song TXT File *",
         type=["txt"],
         key=f"song_file_{st.session_state.file_uploader_key}",
-        disabled=st.session_state.song_uploaded_successfully,
+        disabled=st.session_state.song_uploaded_successfully
     )
 
     submitted = st.button(
         "Upload Song",
         disabled=st.session_state.song_uploaded_successfully,
-        key="upload_song_button",
+        key="upload_song_button"
     )
 
     if st.session_state.song_uploaded_successfully:
-        st.success(
-            f"Song uploaded successfully. "
-            f"Song ID: {st.session_state.uploaded_song_id}"
-        )
+        st.success(f"Song ID {st.session_state.uploaded_song_id} uploaded successfully.")
 
         summary = st.session_state.uploaded_song_summary
         if summary is not None:
@@ -181,6 +145,8 @@ def main() -> None:
             col_stanzas.metric("Stanzas", summary["stanzas"])
             col_lines.metric("Lines", summary["lines"])
             col_words.metric("Words", summary["words"])
+        else:
+            logger.warning("Song upload rejected: summary is empty")
 
         if st.button(
             "Upload Another Song",
@@ -203,9 +169,7 @@ def main() -> None:
 
             st.session_state.file_uploader_key += 1
 
-            logger.info(
-                "Upload page reset successfully"
-            )
+            logger.info("Upload page reset successfully")
 
             st.rerun()
 
@@ -217,52 +181,32 @@ def main() -> None:
     logger.info(f"Song upload requested for title '{title}'")
 
     if not title.strip():
-        logger.warning(
-            "Song upload rejected: empty title"
-        )
-        st.error(
-            "Song title is required."
-        )
+        logger.warning("Song upload rejected: empty title")
+        st.error("Song title is required.")
         return
 
     if not artist.strip():
-        logger.warning(
-            "Song upload rejected: empty artist"
-        )
-        st.error(
-            "Artist is required."
-        )
+        logger.warning("Song upload rejected: empty artist")
+        st.error("Artist is required.")
         return
 
     if uploaded_file is None:
-        logger.warning(
-            "Song upload rejected: no file selected"
-        )
-        st.error(
-            "Please upload a TXT file."
-        )
+        logger.warning("Song upload rejected: no file selected")
+        st.error("Please upload a TXT file.")
         return
 
     temp_path: str | None = None
 
     try:
         validate_uploaded_txt_file(uploaded_file)
-        temp_path = save_uploaded_file(
-            uploaded_file
-        )
+        temp_path = save_uploaded_file(uploaded_file)
 
         song_id = insert_song(
             file_path=temp_path,
             title=title.strip(),
             artist=artist.strip(),
-            album=(
-                album.strip()
-                if album.strip()
-                else None
-            ),
-            publication_year=int(
-                publication_year
-            ),
+            album=(album.strip() if album.strip() else None),
+            publication_year=int(publication_year)
         )
 
         logger.info(f"Song '{title}' uploaded successfully with id {song_id}")
@@ -272,44 +216,30 @@ def main() -> None:
         st.session_state.uploaded_song_id = song_id
 
         try:
-            st.session_state.uploaded_song_summary = get_uploaded_song_summary(
-                song_id
-            )
-        except Exception:
-            logger.exception(
-                "Song id %s uploaded, but summary could not be loaded",
-                song_id,
-            )
+            st.session_state.uploaded_song_summary = get_uploaded_song_summary(song_id)
+        except Exception as e:
+            logger.error(f"Song id {song_id} uploaded, but summary could not be loaded due to error: {e}")
             st.session_state.uploaded_song_summary = None
 
         st.rerun()
 
     except ValueError as error:
         logger.warning(f"Song upload rejected for title '{title}': {error}")
+        st.error(str(error))
 
-        st.error(
-            str(error)
-        )
+    except Exception as e:
+        logger.error(f"Failed to upload song '{title}' due to error: {e}")
 
-    except Exception:
-        logger.exception(f"Failed to upload song '{title}'")
-
-        st.error(
-            "Could not upload the song. "
-            "Please check the application logs for more information."
-        )
+        st.error("Could not upload the song. Please check the application logs for more information.")
 
     finally:
         if temp_path is not None:
             try:
-                Path(temp_path).unlink(
-                    missing_ok=True
-                )
-
+                Path(temp_path).unlink(missing_ok=True)
                 logger.info(f"Temporary file '{temp_path}' deleted")
 
-            except Exception:
-                logger.exception(f"Failed to delete temporary file '{temp_path}'")
+            except Exception as e:
+                logger.error(f"Failed to delete temporary file '{temp_path}' due to error: {e}")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,3 @@
-"""Browse the entire song collection with per-song text statistics."""
-
 import logging
 
 import streamlit as st
@@ -12,10 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    """Show all stored songs, counts and expandable full text.
-
-    Returns:
-        None.
+    """
+    Show all stored songs, counts and expandable full text.
+    :return: None.
     """
     logger.info("Rendering All Songs page")
     st.title("All Songs")
@@ -23,8 +20,8 @@ def main() -> None:
 
     try:
         songs = get_all_songs_with_counts()
-    except Exception:
-        logger.exception("Failed to load the All Songs page")
+    except Exception as e:
+        logger.error(f"Failed to load the All Songs page due to {e}")
         st.error("Could not load the song collection. Please try again.")
         return
 
@@ -43,22 +40,21 @@ def main() -> None:
                 "Year": song["publication_year"],
                 "Stanzas": song["stanzas"],
                 "Lines": song["lines"],
-                "Words": song["words"],
+                "Words": song["words"]
             }
             for song in songs
         ],
         hide_index=True,
-        width="stretch",
+        width="stretch"
     )
 
     st.subheader("Read a Song")
     selected_song_id = st.selectbox(
         "Select Song",
         options=[song["song_id"] for song in songs],
-        format_func=lambda song_id: next(
-            f"{song['title']} — {song['artist']} (ID: {song_id})"
-            for song in songs if song["song_id"] == song_id
-        ),
+        format_func=lambda song_id: next(f"{song['title']} — {song['artist']} (ID: {song_id})"
+                                         for song in songs if song["song_id"] == song_id
+        )
     )
 
     if selected_song_id is None:
@@ -66,8 +62,9 @@ def main() -> None:
 
     try:
         lyrics = get_song_text(int(selected_song_id))
-    except Exception:
-        logger.exception("Failed to reconstruct song id %s", selected_song_id)
+
+    except Exception as e:
+        logger.error(f"Failed to reconstruct song id {selected_song_id} due to {e}")
         st.error("Could not load the selected song text.")
         return
 

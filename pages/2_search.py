@@ -12,7 +12,7 @@ from src.search_service import (
     get_context,
     find_line_by_global_number,
     find_line_by_stanza_position,
-    find_word_by_position,
+    find_word_by_position
 )
 from src.song_service import get_song_text
 
@@ -403,3 +403,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

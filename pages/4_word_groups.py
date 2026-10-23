@@ -11,7 +11,7 @@ from src.group_service import (
     remove_word_from_group,
     get_groups,
     get_group_words,
-    get_group_occurrences,
+    get_group_occurrences
 )
 from src.logger_config import setup_logger
 
@@ -20,53 +20,27 @@ setup_logger()
 logger = logging.getLogger(__name__)
 
 
-def build_group_options(
-    groups: list[tuple[Any, ...]],
-) -> dict[str, int]:
+def build_group_options(groups: list[tuple[Any, ...]]) -> dict[str, int]:
     """
     Converts database group rows into Streamlit selectbox options.
-
-    Args:
-        groups: Group rows returned from get_groups().
-
-    Returns:
-        A dictionary mapping a display label to a group ID.
+    :param groups: Group rows returned from get_groups().
+    :return: A dictionary mapping a display label to a group ID.
     """
     logger.info(f'Building group selection options from {len(groups)} groups')
-
-    options = {
-        group_name: group_id
-        for (
-            group_id,
-            group_name,
-            description,
-            creation_date,
-        ) in groups
-    }
-
+    options = {group_name: group_id for (group_id, group_name, description, creation_date) in groups}
     logger.info(f'Built {len(options)} group selection options')
-
     return options
 
 
 def render_create_group() -> None:
     """
     Renders the interface for creating a new word group.
-
-    Displays a persistent success message after creation and resets
-    the form fields after a group is created successfully.
-
-    Returns:
-        None.
+    Displays a persistent success message after creation and resets the form fields after a group is created successfully.
+    :return: None
     """
     logger.info("Rendering create group section")
-
     st.subheader("Create Group")
-
-    success_message = st.session_state.pop(
-        "create_group_success_message",
-        None,
-    )
+    success_message = st.session_state.pop("create_group_success_message", None)
 
     if success_message:
         st.success(success_message)
@@ -76,9 +50,7 @@ def render_create_group() -> None:
 
     form_version = st.session_state["create_group_form_version"]
 
-    with st.form(
-        f"create_group_form_{form_version}",
-    ):
+    with st.form(f"create_group_form_{form_version}",):
         group_name = st.text_input(
             "Group Name *",
             key=f"new_group_name_{form_version}",
@@ -95,9 +67,7 @@ def render_create_group() -> None:
             help="Choose a word that already occurs in an uploaded song.",
         )
 
-        submitted = st.form_submit_button(
-            "Create Group",
-        )
+        submitted = st.form_submit_button("Create Group",)
 
     if not submitted:
         return
@@ -111,10 +81,7 @@ def render_create_group() -> None:
         return
 
     if not group_name:
-        logger.warning(
-            "Group creation rejected because the name is empty"
-        )
-
+        logger.warning("Group creation rejected because the name is empty")
         st.error("Group name is required.")
         return
 
@@ -126,52 +93,31 @@ def render_create_group() -> None:
         )
 
         logger.info(f"Group '{group_name}' created successfully with id {group_id}")
-
-        st.session_state["create_group_success_message"] = (
-            f"Group '{group_name}' created successfully."
-        )
-
+        st.session_state["create_group_success_message"] = (f"Group '{group_name}' created successfully.")
         st.session_state["create_group_form_version"] += 1
-
         st.rerun()
 
     except ValueError as error:
         logger.warning(f"Could not create group '{group_name}': {error}")
-
         st.error(str(error))
 
-    except Exception:
-        logger.exception(f"Unexpected error while creating group '{group_name}'")
-
-        st.error(
-            "Could not create the group due to an unexpected error. "
-            "Please try again."
-        )
+    except Exception as e:
+        logger.error(f"Unexpected error while creating group '{group_name}'. Error: {e}")
+        st.error("Could not create the group due to an unexpected error. Please try again.")
 
 
-def render_group_editor(
-    group_id: int,
-    group_name: str,
-    description: str | None,
-) -> None:
+def render_group_editor(group_id: int, group_name: str, description: str | None) -> None:
     """
     Renders controls for editing or deleting an existing group.
-
-    Args:
-        group_id: ID of the selected group.
-        group_name: Current group name.
-        description: Current group description.
-
-    Returns:
-        None.
+    :param group_id: ID of the selected group.
+    :param group_name: Current group name.
+    :param description: Current group description.
+    :return: None.
     """
     logger.info(f'Rendering editor for group id {group_id}')
-
     st.subheader("Edit Group")
 
-    with st.form(
-        f"edit_group_form_{group_id}"
-    ):
+    with st.form(f"edit_group_form_{group_id}"):
         updated_name = st.text_input(
             "Group Name *",
             value=group_name,
@@ -184,9 +130,7 @@ def render_group_editor(
             key=f"edit_group_description_{group_id}",
         )
 
-        update_submitted = st.form_submit_button(
-            "Save Changes"
-        )
+        update_submitted = st.form_submit_button("Save Changes")
 
     if update_submitted:
         updated_name = updated_name.strip()
@@ -194,7 +138,6 @@ def render_group_editor(
 
         if not updated_name:
             logger.warning(f'Group update rejected for id {group_id}: empty name')
-
             st.error("Group name is required.")
 
         else:
@@ -207,36 +150,24 @@ def render_group_editor(
 
                 if updated:
                     logger.info(f'Group id {group_id} updated successfully')
-
-                    st.success(
-                        "Group updated successfully."
-                    )
-
+                    st.success("Group updated successfully.")
                     st.rerun()
 
                 else:
                     logger.warning(f'Group id {group_id} was not found during update')
-
-                    st.warning(
-                        "The selected group no longer exists."
-                    )
+                    st.warning("The selected group no longer exists.")
 
             except ValueError as error:
-                logger.warning(
-                    "Group update rejected for id %s: %s", group_id, error
-                )
+                logger.warning(f"Group update rejected for id {group_id}: {error}")
                 st.error(str(error))
 
-            except Exception:
-                logger.exception("Unexpected group update error for id %s", group_id)
+            except Exception as e:
+                logger.error(f"Unexpected group update error for id {group_id}: {e}")
                 st.error("Could not update the group. Please try again.")
 
     st.markdown("---")
-
-    st.warning(
-        "Deleting a group removes the group and its word associations, "
-        "but does not delete the words from the database."
-    )
+    st.warning("Deleting a group removes the group and its word associations, but does not delete the words "
+               "from the database.")
 
     confirm_delete = st.checkbox(
         "I understand and want to delete this group",
@@ -250,83 +181,44 @@ def render_group_editor(
     ):
         try:
             deleted = delete_group(group_id)
-
             if deleted:
                 logger.info(f'Group id {group_id} deleted successfully')
-
-                st.success(
-                    "Group deleted successfully."
-                )
-
+                st.success("Group deleted successfully.")
                 st.rerun()
 
             else:
                 logger.warning(f'Group id {group_id} was not found during deletion')
-
-                st.warning(
-                    "The selected group no longer exists."
-                )
+                st.warning("The selected group no longer exists.")
 
         except Exception as error:
-            logger.exception(f'Failed to delete group id {group_id}')
-
-            st.error(
-                f"Could not delete the group: {error}"
-            )
+            logger.exception(f'Failed to delete group id {group_id} due to an unexpected error. Error: {error}')
+            st.error(f"Could not delete the group: {error}")
 
 
-def render_group_words(
-    group_id: int,
-) -> None:
+def render_group_words(group_id: int) -> None:
     """
-    Renders the words currently assigned to a group and controls
-    for adding or removing words.
-
-    Args:
-        group_id: ID of the selected group.
-
-    Returns:
-        None.
+    Renders the words currently assigned to a group and controls for adding or removing words.
+    :param group_id: ID of the selected group.
+    :return: None.
     """
     logger.info(f'Rendering words for group id {group_id}')
-
     st.subheader("Words in Group")
 
     try:
-        words = get_group_words(
-            group_id
-        )
+        words = get_group_words(group_id)
 
-    except Exception:
-        logger.exception(f'Failed to fetch words for group id {group_id}')
-
-        st.error(
-            "Could not load the group's words."
-        )
+    except Exception as e:
+        logger.error(f'Failed to fetch words for group id {group_id} due to an unexpected error. Error: {e}')
+        st.error("Could not load the group's words.")
         return
 
     if words:
-        rows = [
-            {
-                "Word ID": word_id,
-                "Word": text,
-            }
-            for (
-                word_id,
-                text,
-            ) in words
-        ]
+        rows = [{"Word ID": word_id, "Word": text} for (word_id, text) in words]
 
-        st.dataframe(
-            rows,
-            use_container_width=True,
-            hide_index=True,
-        )
+        st.dataframe(rows, use_container_width=True, hide_index=True)
 
     else:
-        st.info(
-            "This group does not contain any words yet."
-        )
+        st.info("This group does not contain any words yet.")
 
     st.markdown("### Add Word")
 
@@ -341,9 +233,7 @@ def render_group_words(
     version = st.session_state[version_key]
 
     with st.form(f"add_word_form_{group_id}_{version}"):
-        word_to_add = st.text_input(
-            "Word *", key=f"word_to_add_{group_id}_{version}"
-        )
+        word_to_add = st.text_input("Word *", key=f"word_to_add_{group_id}_{version}")
         add_submitted = st.form_submit_button("Add Word")
 
     if add_submitted:
@@ -354,136 +244,83 @@ def render_group_words(
         else:
             try:
                 add_word_to_group(group_id=group_id, word=word_to_add)
-                logger.info("Word '%s' added to group %s", word_to_add, group_id)
-                st.session_state[message_key] = (
-                    f"Word '{word_to_add}' added successfully."
-                )
+                logger.info(f"Word '{word_to_add}' added to group {group_id}")
+                st.session_state[message_key] = (f"Word '{word_to_add}' added successfully.")
                 st.session_state[version_key] += 1
                 st.rerun()
             except ValueError as exc:
-                logger.warning(
-                    "Word '%s' rejected for group %s: %s",
-                    word_to_add, group_id, exc,
-                )
+                logger.warning(f"Word '{word_to_add}' rejected for group {group_id}: {exc}")
                 st.error(str(exc))
-            except Exception:
-                logger.exception(
-                    "Unexpected error adding '%s' to group %s",
-                    word_to_add, group_id,
-                )
+            except Exception as e:
+                logger.error(f"Unexpected error adding '{word_to_add}' to group {group_id}: {e}")
                 st.error("Could not add the word. Please try again.")
 
     if words:
         st.markdown("### Remove Word")
-
-        word_options = {
-            text: word_id
-            for (
-                word_id,
-                text,
-            ) in words
-        }
+        word_options = {text: word_id for (word_id, text) in words}
 
         selected_word = st.selectbox(
             "Select Word",
-            options=list(
-                word_options.keys()
-            ),
-            key=f"remove_word_select_{group_id}",
+            options=list(word_options.keys()),
+            key=f"remove_word_select_{group_id}"
         )
 
-        if st.button(
-            "Remove Word",
-            key=f"remove_word_button_{group_id}",
-        ):
+        if st.button("Remove Word", key=f"remove_word_button_{group_id}"):
             try:
-                removed = remove_word_from_group(
-                    group_id=group_id,
-                    word=selected_word,
-                )
+                removed = remove_word_from_group(group_id=group_id, word=selected_word)
 
                 if removed:
-                    logger.info(
-                        f"Word '{selected_word}' removed from group id {group_id}",
-                    )
-
-                    st.success(
-                        f"Word '{selected_word}' removed successfully."
-                    )
-
+                    logger.info(f"Word '{selected_word}' removed from group id {group_id}")
+                    st.success(f"Word '{selected_word}' removed successfully.")
                     st.rerun()
 
                 else:
-                    logger.warning(
-                        f"Word '{selected_word}' was not found in group id {group_id}",
-                    )
-
-                    st.warning(
-                        "The selected word is no longer in the group."
-                    )
+                    logger.warning(f"Word '{selected_word}' was not found in group id {group_id}")
+                    st.warning("The selected word is no longer in the group.")
 
             except ValueError as error:
-                logger.warning(
-                    "Cannot remove word '%s' from group %s: %s",
-                    selected_word, group_id, error,
-                )
+                logger.warning(f"Cannot remove word '{selected_word}' from group {group_id}: {error}")
                 st.error(str(error))
 
-            except Exception:
-                logger.exception(
-                    "Failed to remove word '%s' from group id %s",
-                    selected_word, group_id,
+            except Exception as e:
+                logger.error(f"Failed to remove word '{selected_word}' from group id {group_id} due to an "
+                             f"unexpected error. Error: {e}"
                 )
                 st.error("Could not remove the word. Please try again.")
 
 
-def render_group_occurrences(
-    group_id: int,
-) -> None:
+def render_group_occurrences(group_id: int) -> None:
     """
     Renders all occurrences of words belonging to the selected group.
-
-    Args:
-        group_id: ID of the selected group.
-
-    Returns:
-        None.
+    :param group_id: ID of the selected group.
+    :return: None.
     """
     logger.info(f'Rendering occurrences for group id {group_id}')
-
     st.subheader("Group Occurrences")
 
     try:
         occurrences = get_group_occurrences(group_id)
 
-    except Exception:
-        logger.exception(f'Failed to fetch occurrences for group id {group_id}')
-
-        st.error(
-            "Could not load group occurrences."
-        )
+    except Exception as e:
+        logger.error(f'Failed to fetch occurrences for group id {group_id} due to an unexpected error. Error: {e}')
+        st.error("Could not load group occurrences.")
         return
 
     if not occurrences:
         logger.info(f'No occurrences found for group id {group_id}')
-
-        st.info(
-            "No occurrences were found for this group."
-        )
+        st.info("No occurrences were found for this group.")
         return
 
     rows = []
 
-    for (
-        word,
-        song_id,
-        song_title,
-        stanza_number,
-        global_line_number,
-        line_number_in_stanza,
-        position_in_line,
-        original_token,
-    ) in occurrences:
+    for (word,
+         song_id,
+         song_title,
+         stanza_number,
+         global_line_number,
+         line_number_in_stanza,
+         position_in_line,
+         original_token) in occurrences:
         rows.append(
             {
                 "Word": word,
@@ -496,39 +333,21 @@ def render_group_occurrences(
             }
         )
 
-    st.caption(
-        f"{len(rows)} occurrence"
-        f"{'s' if len(rows) != 1 else ''}"
-    )
-
-    st.dataframe(
-        rows,
-        use_container_width=True,
-        hide_index=True,
-    )
-
+    st.caption(f"{len(rows)} occurrence{'s' if len(rows) != 1 else ''}")
+    st.dataframe(rows, use_container_width=True, hide_index=True)
     logger.info(f'Displayed {len(rows)} occurrences for group id {group_id}')
 
 
 def main() -> None:
     """
     Renders the Word Groups management page.
-
-    The page allows users to create groups, edit or delete existing
-    groups, add or remove words, and inspect all occurrences of words
-    belonging to a group.
-
-    Returns:
-        None.
+    The page allows users to create groups, edit or delete existing groups, add or remove words,
+    and inspect all occurrences of words belonging to a group.
+    :return: None.
     """
     logger.info("Rendering word groups page")
-
     st.title("Word Groups")
-
-    st.write(
-        "Create custom groups of words and inspect their occurrences "
-        "across the song collection."
-    )
+    st.write("Create custom groups of words and inspect their occurrences across the song collection.")
 
     create_tab, manage_tab = st.tabs(
         [
@@ -544,50 +363,21 @@ def main() -> None:
         try:
             groups = get_groups()
 
-        except Exception:
-            logger.exception(
-                "Failed to load word groups"
-            )
-
-            st.error(
-                "Could not load the word groups."
-            )
+        except Exception as e:
+            logger.error(f"Failed to load word groups due to an unexpected error. Error: {e}")
+            st.error("Could not load the word groups.")
             return
 
         if not groups:
-            st.info(
-                "No word groups have been created yet."
-            )
+            st.info("No word groups have been created yet.")
             return
 
         group_options = build_group_options(groups)
-
-        selected_group_name = st.selectbox(
-            "Select Group",
-            options=list(group_options.keys()),
-        )
-
-        selected_group_id = group_options[
-            selected_group_name
-        ]
-
-        selected_group = next(
-            group
-            for group in groups
-            if group[0] == selected_group_id
-        )
-
-        (
-            group_id,
-            group_name,
-            description,
-            creation_date,
-        ) = selected_group
-
-        st.caption(
-            f"Created: {creation_date}"
-        )
-
+        selected_group_name = st.selectbox("Select Group", options=list(group_options.keys()))
+        selected_group_id = group_options[selected_group_name]
+        selected_group = next(group for group in groups if group[0] == selected_group_id)
+        (group_id, group_name, description, creation_date) = selected_group
+        st.caption(f"Created: {creation_date}")
         editor_tab, words_tab, occurrences_tab = st.tabs(
             [
                 "Group Details",
@@ -597,25 +387,15 @@ def main() -> None:
         )
 
         with editor_tab:
-            render_group_editor(
-                group_id=group_id,
-                group_name=group_name,
-                description=description,
-            )
+            render_group_editor(group_id=group_id, group_name=group_name, description=description)
 
         with words_tab:
-            render_group_words(
-                group_id=group_id,
-            )
+            render_group_words(group_id=group_id)
 
         with occurrences_tab:
-            render_group_occurrences(
-                group_id=group_id,
-            )
+            render_group_occurrences(group_id=group_id)
 
-    logger.info(
-        "Word groups page rendered successfully"
-    )
+    logger.info("Word groups page rendered successfully")
 
 
 if __name__ == "__main__":

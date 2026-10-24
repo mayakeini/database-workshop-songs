@@ -70,7 +70,7 @@ def render_create_phrase() -> None:
         st.error("Phrase text is required.")
         return
 
-    logger.info(f"Phrase creation submitted: name='{phrase_name}', text='{phrase_text}'",)
+    logger.info(f"Phrase creation submitted: name='{phrase_name}', text='{phrase_text}'")
 
     try:
         phrase_id = create_and_search_phrase(phrase_name=phrase_name, phrase_text=phrase_text)

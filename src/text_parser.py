@@ -23,7 +23,6 @@ def _normalize_word(word: str) -> str:
 def parse_song(file_path: str) -> List[dict]:
     """
     Reads a song text file and returns structured word occurrences.
-
     Each occurrence contains:
     - normalized word
     - original token
@@ -37,9 +36,7 @@ def parse_song(file_path: str) -> List[dict]:
     :return: list of occurrences
     """
     logger.info(f"Start parsing {file_path} file path")
-
     occurrences = []
-
     stanza_number = 1
     global_line_number = 0
     line_number_in_stanza = 0
@@ -60,9 +57,8 @@ def parse_song(file_path: str) -> List[dict]:
             global_line_number += 1
             line_number_in_stanza += 1
 
-            # Punctuation-only fragments are not words. Attach them to
-            # neighboring tokens so their positions remain consecutive and
-            # the original punctuation survives line reconstruction.
+            # Punctuation-only fragments are not words. Attach them to neighboring tokens so their positions remain
+            # consecutive and the original punctuation survives line reconstruction.
             tokens = line.split()
             words_on_line: list[dict] = []
             leading_punctuation = ""
@@ -84,19 +80,15 @@ def parse_song(file_path: str) -> List[dict]:
                     "global_line_number": global_line_number,
                     "line_number_in_stanza": line_number_in_stanza,
                     "position_in_line": len(words_on_line) + 1,
-                    "position_in_song": position_in_song,
+                    "position_in_song": position_in_song
                 })
                 leading_punctuation = ""
 
-            # A punctuation-only line cannot be represented by the existing
-            # word-occurrence schema; it contributes no word occurrences.
+            # A punctuation-only line cannot be represented by the existing word-occurrence schema;
+            # it contributes no word occurrences.
             if leading_punctuation and not words_on_line:
-                logger.warning(
-                    "Line %s in '%s' contains no searchable words; "
-                    "punctuation-only content cannot be reconstructed",
-                    line_index + 1,
-                    file_path,
-                )
+                logger.warning(f"Line {line_index + 1} in '{file_path}' contains no searchable words; "
+                               f"punctuation-only content cannot be reconstructed")
             occurrences.extend(words_on_line)
 
     return occurrences

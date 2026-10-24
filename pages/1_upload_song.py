@@ -22,7 +22,7 @@ def save_uploaded_file(uploaded_file: st.runtime.uploaded_file_manager.UploadedF
     logger.info(f"Saving uploaded file '{uploaded_file.name}' temporarily")
     try:
         suffix = Path(uploaded_file.name).suffix
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix,) as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
             temp_file.write(uploaded_file.getbuffer())
             temp_path = temp_file.name
 
@@ -44,28 +44,25 @@ def validate_uploaded_txt_file(uploaded_file: st.runtime.uploaded_file_manager.U
     logger.info("Validating uploaded TXT file")
     filename = uploaded_file.name
     if Path(filename).suffix.lower() != ".txt":
-        logger.warning("Rejected upload with non-TXT extension: %s", filename)
+        logger.warning(f"Rejected upload with non-TXT extension: {filename}")
         raise ValueError("Only .txt files are supported. Please select a TXT file.")
 
     content = uploaded_file.getvalue()
     if not content:
-        logger.warning("Rejected empty TXT upload: %s", filename)
+        logger.warning(f"Rejected empty TXT upload: {filename}")
         raise ValueError("The TXT file is empty. Please select a non-empty file.")
 
     if b"\x00" in content:
-        logger.warning("Rejected binary upload disguised as TXT: %s", filename)
+        logger.warning(f"Rejected binary upload disguised as TXT: {filename}")
         raise ValueError("This file is not a valid text file. Please upload a UTF-8 TXT file.")
 
     try:
         content.decode("utf-8-sig")
     except UnicodeDecodeError as error:
-        logger.warning("Rejected non-UTF-8 upload: %s", filename)
-        raise ValueError(
-            "The file could not be read as UTF-8 text. "
-            "Please save it as a UTF-8 TXT file and try again."
-        ) from error
+        logger.warning(f"Rejected non-UTF-8 upload: {filename}")
+        raise ValueError("The file could not be read as UTF-8 text. Please save it as a UTF-8 TXT file and try again.")
 
-    logger.info("Validated TXT upload: %s", filename)
+    logger.info(f"Validated TXT upload: {filename}")
 
 
 def main() -> None:

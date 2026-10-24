@@ -13,19 +13,14 @@ logger = logging.getLogger(__name__)
 def main() -> None:
     """
     Renders the main page of the concordance application.
-
-    The page displays a short description of the system and general
-    statistics about the current database.
-
-    Returns:
-        None.
+    The page displays a short description of the system and general statistics about the current database.
+    :return: None.
     """
     logger.info("Rendering main application page")
-
     st.set_page_config(
         page_title="Songs Concordance System",
         page_icon="🎵",
-        layout="wide",
+        layout="wide"
     )
 
     st.title("🎵 Songs Concordance System")
@@ -42,46 +37,26 @@ def main() -> None:
 
     try:
         summary = get_database_summary()
-
         st.subheader("Database Summary")
-
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
-            st.metric(
-                "Songs",
-                summary["song_count"],
-            )
+            st.metric("Songs", summary["song_count"])
 
         with col2:
-            st.metric(
-                "Total Words",
-                summary["total_words"],
-            )
+            st.metric("Total Words", summary["total_words"])
 
         with col3:
-            st.metric(
-                "Unique Words",
-                summary["unique_words"],
-            )
+            st.metric("Unique Words", summary["unique_words"])
 
         with col4:
-            st.metric(
-                "Average Word Length",
-                summary["average_word_length"],
-            )
+            st.metric("Average Word Length", summary["average_word_length"])
 
         logger.info("Main page rendered successfully")
 
-    except Exception:
-        logger.exception(
-            "Failed to load database summary on main page"
-        )
-
-        st.error(
-            "Could not load database statistics. "
-            "Please verify that Oracle is running."
-        )
+    except Exception as e:
+        logger.error(f"Failed to load database summary on main page due to {e}")
+        st.error("Could not load database statistics. Please verify that Oracle is running.")
 
 
 if __name__ == "__main__":

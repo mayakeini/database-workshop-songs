@@ -30,7 +30,7 @@ def render_backup() -> None:
     if "xml_backup_filename" not in st.session_state:
         st.session_state.xml_backup_filename = None
 
-    if st.button("Generate XML Backup", key="generate_xml_backup",):
+    if st.button("Generate XML Backup", key="generate_xml_backup"):
         logger.info("XML backup requested by user")
 
         try:

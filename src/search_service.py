@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from src.db import get_database_service
 from src.queries.db_queries import (
@@ -8,20 +9,20 @@ from src.queries.db_queries import (
     query_select_line_tokens_by_global_number,
     query_select_line_tokens_by_stanza_position,
     query_select_word_by_position,
-    query_select_word_index,
+    query_select_word_index
 )
 
 logger = logging.getLogger(__name__)
 
 
-def search_songs(title=None, artist=None, album=None, publication_year=None):
+def search_songs(title=None, artist=None, album=None, publication_year=None) -> list[tuple[Any, ...]]:
     """
     Search songs based on title and artist & album title
     :param title: title of the song
     :param artist: song's artist
     :param album: song's album
     :param publication_year: song's publication year
-    :return:
+    :return: List of tuples containing the songs that match the search criteria.
     """
     with get_database_service().read_cursor() as cursor:
         query_search_songs(
@@ -35,11 +36,11 @@ def search_songs(title=None, artist=None, album=None, publication_year=None):
         return cursor.fetchall()
 
 
-def search_word(word: str):
+def search_word(word: str) -> list[tuple[Any, ...]]:
     """
     Search words
     :param word: str of the word
-    :return:
+    :return: List of tuples containing all occurrences of the searched word.
     """
     with get_database_service().read_cursor() as cursor:
         query_search_word_occurrences(cursor, word)
@@ -55,15 +56,8 @@ def get_context(song_id: int, global_line_number: int) -> dict:
     :return: dictionary of the context for the song
     """
     with get_database_service().read_cursor() as cursor:
-        query_select_context_lines(
-            cursor,
-            song_id,
-            global_line_number - 1,
-            global_line_number + 1,
-        )
-
+        query_select_context_lines(cursor, song_id, global_line_number - 1, global_line_number + 1)
         rows = cursor.fetchall()
-
         lines = {}
 
         for line_number, position, token in rows:
@@ -72,34 +66,21 @@ def get_context(song_id: int, global_line_number: int) -> dict:
 
             lines[line_number].append(token)
 
-        return {
-            line_number: " ".join(tokens)
-            for line_number, tokens in lines.items()
-        }
+        return {line_number: " ".join(tokens) for line_number, tokens in lines.items()}
 
 
-def get_word_index(
-    song_id: int | None = None,
-    group_id: int | None = None,
-) -> list[tuple]:
-    """Return word occurrences optionally filtered by song and word group.
-
-    Args:
-        song_id: Song to filter by, or None for all songs.
-        group_id: Word group to filter by, or None for all words.
-
-    Returns:
-        Occurrence rows containing word, song and location fields.
+def get_word_index(song_id: int | None = None, group_id: int | None = None) -> list[tuple]:
     """
-    logger.info(
-        "Fetching word index: song_id=%s, group_id=%s",
-        song_id,
-        group_id,
-    )
+    Return word occurrences optionally filtered by song and word group.
+    :param song_id: Song to filter by, or None for all songs.
+    :param group_id: Word group to filter by, or None for all words.
+    :return: Occurrence rows containing word, song and location fields.
+    """
+    logger.info(f"Fetching word index: song_id={song_id}, group_id={group_id}")
     with get_database_service().read_cursor() as cursor:
         query_select_word_index(cursor, song_id=song_id, group_id=group_id)
         rows = cursor.fetchall()
-        logger.info("Fetched %s word index rows", len(rows))
+        logger.info(f"Fetched {len(rows)} word index rows")
         return rows
 
 
@@ -112,12 +93,7 @@ def find_line_by_global_number(song_id: int, global_line_number:int) -> dict:
     """
     logger.info(fr"Find the line in line number: {global_line_number} of the song id: {song_id}")
     with get_database_service().read_cursor() as cursor:
-        query_select_line_tokens_by_global_number(
-            cursor,
-            song_id,
-            global_line_number,
-        )
-
+        query_select_line_tokens_by_global_number(cursor, song_id, global_line_number)
         tokens = [row[0] for row in cursor.fetchall()]
 
         if not tokens:
@@ -136,13 +112,7 @@ def find_line_by_stanza_position(song_id: int, stanza_number: int, line_number_i
     """
     logger.info(fr"Find the line of the song id {song_id} and stanza number {stanza_number}. Line number in stanza is {line_number_in_stanza}")
     with get_database_service().read_cursor() as cursor:
-        query_select_line_tokens_by_stanza_position(
-            cursor,
-            song_id,
-            stanza_number,
-            line_number_in_stanza,
-        )
-
+        query_select_line_tokens_by_stanza_position(cursor, song_id, stanza_number, line_number_in_stanza)
         tokens = [row[0] for row in cursor.fetchall()]
 
         if not tokens:
@@ -161,11 +131,6 @@ def find_word_by_position(song_id: int, global_line_number: int, position_in_lin
     """
     logger.info(fr"Find the word in line number: {position_in_line} of the song id: {song_id}. The word position is {global_line_number}")
     with get_database_service().read_cursor() as cursor:
-        query_select_word_by_position(
-            cursor,
-            song_id,
-            global_line_number,
-            position_in_line,
-        )
+        query_select_word_by_position(cursor, song_id, global_line_number, position_in_line)
 
         return cursor.fetchone()

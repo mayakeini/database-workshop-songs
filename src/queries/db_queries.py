@@ -1,5 +1,3 @@
-"""All SQL query helpers used by the application services."""
-
 import logging
 import oracledb
 
@@ -624,7 +622,7 @@ def query_select_song_word_occurrences_for_phrases(
     song_id: int,
 ) -> None:
     """Select normalized words and locations from one song for phrase matching."""
-    logger.debug("Loading occurrences for phrase matching in song %s", song_id)
+    logger.debug(f"Loading occurrences for phrase matching in song {song_id}")
     cursor.execute(
         """
         SELECT
@@ -1102,8 +1100,10 @@ def query_insert_phrase_for_xml_restore(
 
 
 def query_select_uploaded_song_summary(cursor: oracledb.Cursor, song_id: int) -> None:
-    """Select persisted stanza, line and word counts for a single song."""
-    logger.info("Selecting upload summary for song id %s", song_id)
+    """'
+    Select persisted stanza, line and word counts for a single song.
+    """
+    logger.info(f"Selecting upload summary for song id {song_id}")
     cursor.execute(
         """
         SELECT COUNT(DISTINCT stanza_id) AS stanza_count,

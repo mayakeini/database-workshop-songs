@@ -50,7 +50,7 @@ def render_create_group() -> None:
 
     form_version = st.session_state["create_group_form_version"]
 
-    with st.form(f"create_group_form_{form_version}",):
+    with st.form(f"create_group_form_{form_version}"):
         group_name = st.text_input(
             "Group Name *",
             key=f"new_group_name_{form_version}",
@@ -67,7 +67,7 @@ def render_create_group() -> None:
             help="Choose a word that already occurs in an uploaded song.",
         )
 
-        submitted = st.form_submit_button("Create Group",)
+        submitted = st.form_submit_button("Create Group")
 
     if not submitted:
         return
@@ -191,7 +191,7 @@ def render_group_editor(group_id: int, group_name: str, description: str | None)
                 st.warning("The selected group no longer exists.")
 
         except Exception as error:
-            logger.exception(f'Failed to delete group id {group_id} due to an unexpected error. Error: {error}')
+            logger.error(f'Failed to delete group id {group_id} due to an unexpected error. Error: {error}')
             st.error(f"Could not delete the group: {error}")
 
 
@@ -239,7 +239,7 @@ def render_group_words(group_id: int) -> None:
     if add_submitted:
         word_to_add = word_to_add.strip()
         if not word_to_add:
-            logger.warning("Empty word rejected for group %s", group_id)
+            logger.warning(f"Empty word rejected for group {group_id}")
             st.error("Please enter a word.")
         else:
             try:

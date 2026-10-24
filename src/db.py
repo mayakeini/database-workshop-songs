@@ -18,10 +18,10 @@ DEFAULT_PASSWORD = "songsproject"
 
 
 class DatabaseService:
-    """Manage pooled connections and one transaction per write operation.
-
-    Only the pool is shared. Connections and cursors belong to the individual
-    context that acquired them and must not be used after that context exits.
+    """
+    Manage pooled connections and one transaction per write operation.
+    Only the pool is shared. Connections and cursors belong to the individual context that acquired them
+    and must not be used after that context exits.
     """
 
     def __init__(self, pool: oracledb.ConnectionPool) -> None:
@@ -29,10 +29,11 @@ class DatabaseService:
 
     @contextmanager
     def read_cursor(self) -> Iterator[oracledb.Cursor]:
-        """Yield a cursor without committing, then release both resources.
-
-        Oracle rolls back any uncommitted work when the connection is returned
-        to the pool. Fetch results inside this context before returning them.
+        """
+        Yield a cursor without committing, then release both resources.
+        Oracle rolls back any uncommitted work when the connection is returned to the pool. Fetch results inside
+        this context before returning them.
+        :return: a cursor without committing, then release both resources.
         """
         with self._pool.acquire() as connection:
             with connection.cursor() as cursor:
@@ -40,10 +41,11 @@ class DatabaseService:
 
     @contextmanager
     def transaction(self) -> Iterator[oracledb.Cursor]:
-        """Commit the entire block on success or roll back and propagate errors.
-
-        Pass this cursor to every query in the operation. Opening another
-        transaction context acquires a separate connection and transaction.
+        """
+        Commit the entire block on success or roll back and propagate errors.
+        Pass this cursor to every query in the operation. Opening another transaction context acquires a separate
+        connection and transaction.
+        :return: a cursor without committing, then release both resources.
         """
         with self._pool.acquire() as connection:
             try:
@@ -53,32 +55,36 @@ class DatabaseService:
             except BaseException:
                 try:
                     connection.rollback()
-                except Exception:
+                except Exception as e:
                     # A lost connection can also make rollback fail. Preserve
                     # the operation's original error for its caller.
-                    logger.exception("Failed to roll back database transaction")
+                    logger.error(f"Failed to roll back database transaction due to {e}")
                 raise
 
     def close(self) -> None:
-        """Close the pool after all callers have released their connections."""
+        """
+        Close the pool after all callers have released their connections.
+        :return: None
+        """
         self._pool.close()
 
 
-def _initialize_session(
-    connection: oracledb.Connection,
-    requested_tag: str | None,
-) -> None:
-    """Initialize each new pooled session before it is handed to a caller."""
+def _initialize_session(connection: oracledb.Connection) -> None:
+    """
+    Initialize each new pooled session before it is handed to a caller.
+    :param connection: an oracle connection pool
+    :return: None
+    """
     with connection.cursor() as cursor:
         db_queries.query_set_session_timezone(cursor)
 
 
 @st.cache_resource(show_spinner=False)
 def get_database_service() -> DatabaseService:
-    """Lazily create one service shared across Streamlit sessions and reruns.
-
-    Configuration is read when the pool is created. Restart the app after
-    changing its Oracle environment variables.
+    """
+    Lazily create one service shared across Streamlit sessions and reruns.
+    Configuration is read when the pool is created. Restart the app after changing its Oracle environment variables.
+    :return: a database service shared across Streamlit sessions and reruns
     """
     host = os.getenv("ORACLE_HOST", DEFAULT_HOST)
     port = os.getenv("ORACLE_PORT", DEFAULT_PORT)

@@ -278,12 +278,12 @@ def main() -> None:
         render_database_summary()
 
     else:
-        render_song_summary(song_id=selected_song_id,)
+        render_song_summary(song_id=selected_song_id)
 
     st.markdown("---")
 
     # Frequency tables
-    render_frequency_tables(song_id=selected_song_id,)
+    render_frequency_tables(song_id=selected_song_id)
 
     st.markdown("---")
 
@@ -326,7 +326,7 @@ def main() -> None:
                 )
             )
 
-            st.altair_chart(frequency_chart, use_container_width=True,)
+            st.altair_chart(frequency_chart, use_container_width=True)
 
             logger.info("Most frequent words chart rendered successfully")
 
@@ -395,7 +395,7 @@ def main() -> None:
         logger.info(f'Rendering words per stanza for song id {selected_song_id}')
 
         try:
-            stanza_statistics = get_words_per_stanza(song_id=selected_song_id,)
+            stanza_statistics = get_words_per_stanza(song_id=selected_song_id)
 
             if stanza_statistics:
                 stanza_dataframe = pd.DataFrame(stanza_statistics, columns=["Stanza", "Word Count"])

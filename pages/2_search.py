@@ -228,7 +228,7 @@ def render_word_search() -> None:
             logger.warning("Word search rejected because input was empty")
             st.session_state["word_search_error"] = "Please enter a word."
         else:
-            logger.info(f"Searching for word '%s'", word)
+            logger.info(f"Searching for word '{word}'")
             try:
                 st.session_state["word_search_results"] = search_word(word)
             except Exception as e:

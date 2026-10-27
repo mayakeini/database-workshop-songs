@@ -25,7 +25,7 @@ class DatabaseService:
     """
 
     def __init__(self, pool: oracledb.ConnectionPool) -> None:
-        self._pool = pool
+        self.oracle_con_pool = pool
 
     @contextmanager
     def read_cursor(self) -> Iterator[oracledb.Cursor]:
@@ -35,7 +35,7 @@ class DatabaseService:
         this context before returning them.
         :return: a cursor without committing, then release both resources.
         """
-        with self._pool.acquire() as connection:
+        with self.oracle_con_pool.acquire() as connection:
             with connection.cursor() as cursor:
                 yield cursor
 
@@ -47,7 +47,7 @@ class DatabaseService:
         connection and transaction.
         :return: a cursor without committing, then release both resources.
         """
-        with self._pool.acquire() as connection:
+        with self.oracle_con_pool.acquire() as connection:
             try:
                 with connection.cursor() as cursor:
                     yield cursor
@@ -66,7 +66,7 @@ class DatabaseService:
         Close the pool after all callers have released their connections.
         :return: None
         """
-        self._pool.close()
+        self.oracle_con_pool.close()
 
 
 def _initialize_session(connection: oracledb.Connection) -> None:

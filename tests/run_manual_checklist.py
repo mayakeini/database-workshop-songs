@@ -452,7 +452,7 @@ class Checklist(unittest.TestCase):
         baseline = raw_snapshot()
         subprocess.run(["docker", "stop", "-t", "10", CONTAINER], check=True, capture_output=True)
         try:
-            db.get_database_service()._pool.close(force=True)
+            db.get_database_service().oracle_con_pool.close(force=True)
             db.get_database_service.clear()
             for path in ("app.py", "pages/2_search.py", "pages/3_word_index.py", "pages/4_word_groups.py",
                          "pages/5_phrases.py", "pages/6_statistics.py", "pages/8_all_songs.py"):
@@ -655,7 +655,7 @@ class Checklist(unittest.TestCase):
         self.assertEqual(raw_snapshot(), snapshot)
 
     def test_WB13_pool_limit(self):
-        pool = db.get_database_service()._pool
+        pool = db.get_database_service().oracle_con_pool
         held = [pool.acquire() for _ in range(4)]
         try:
             started = time.monotonic()

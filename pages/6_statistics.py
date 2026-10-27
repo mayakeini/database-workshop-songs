@@ -23,13 +23,16 @@ logger = logging.getLogger(__name__)
 def get_song_options() -> dict[str, int]:
     """
     Retrieves all songs and builds options for the song selector.
-    :return: A dictionary mapping a display label to the corresponding song ID.
+    :return: A dictionary mapping a unique label with album and ID to its song ID.
     """
     logger.info("Fetching songs for statistics page")
 
     try:
         songs = search_songs()
-        options = {f"{title} — {artist}": song_id for (song_id, title, artist, album, publication_year, upload_date) in songs}
+        options = {
+            f"{title} — {artist} — {album or 'No album'} (ID: {song_id})": song_id
+            for (song_id, title, artist, album, publication_year, upload_date) in songs
+        }
 
         logger.info(f'Fetched {len(options)} songs for statistics selector')
         return options

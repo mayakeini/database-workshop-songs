@@ -359,9 +359,9 @@ def render_location_search() -> None:
         st.success("Location found.")
 
         if search_mode == "Word Position":
-            normalized_word, original_token = result
+            normalized_word, original_word = result
             st.write(f"**Word:** {normalized_word}")
-            st.write(f"**Original Token:** {original_token}")
+            st.write(f"**Original Word:** {original_word}")
 
         else:
             st.write("**Line Text:**")

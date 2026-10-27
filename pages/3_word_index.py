@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def get_song_options() -> dict[str, int]:
     """
     Returns all songs in a format suitable for a Streamlit selectbox.
-    :return: A dictionary mapping a display label to its song ID.
+    :return: A dictionary mapping a unique label with album and ID to its song ID.
     """
     logger.info("Fetching songs for word index filter")
 
@@ -25,7 +25,8 @@ def get_song_options() -> dict[str, int]:
         songs = search_songs()
 
         options = {
-            f"{title} — {artist}": song_id for (song_id, title, artist, album, publication_year, upload_date) in songs
+            f"{title} — {artist} — {album or 'No album'} (ID: {song_id})": song_id
+            for (song_id, title, artist, album, publication_year, upload_date) in songs
         }
 
         logger.info(f'Fetched {len(options)} songs for word index filter')

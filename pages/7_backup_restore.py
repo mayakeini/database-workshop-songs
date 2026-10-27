@@ -93,6 +93,11 @@ def render_restore() -> None:
         xml_data = uploaded_file.getvalue()
         counts = restore_database_from_xml(xml_data=xml_data)
 
+        # Restore generates new IDs, so cached occurrences are no longer valid.
+        st.session_state["word_search_results"] = None
+        st.session_state["word_occurrence_index"] = 0
+        st.session_state["word_search_error"] = None
+
         logger.info("Database restored successfully")
         st.success("Database restored successfully.")
         st.subheader("Restored Records")

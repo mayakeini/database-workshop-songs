@@ -25,6 +25,7 @@ The system allows users to:
 - Export the entire database to XML.
 - Restore the database from an XML backup.
 - Browse all songs and their stanza, line, and word counts.
+- Delete individual songs with an inline Yes/No confirmation.
 
 ## Technologies
 
@@ -99,6 +100,7 @@ The Streamlit interface provides separate pages for:
 6. Statistics
 7. Backup & Restore
 8. All Songs
+9. Delete Song
 
 ## Project Structure
 
@@ -130,7 +132,8 @@ database-workshop-songs-main/
 │   ├── 5_phrases.py
 │   ├── 6_statistics.py
 │   ├── 7_backup_restore.py
-│   └── 8_all_songs.py
+│   ├── 8_all_songs.py
+│   └── 9_delete_song.py
 ├── sample_songs/
 ├── backup/
 └── tests/
@@ -334,6 +337,18 @@ Available statistics include:
 
 Charts are displayed using Altair.
 
+## Delete Song
+
+The Delete Song page lists every song with a Delete button beside it. Clicking
+Delete shows an inline confirmation naming the song and artist. Yes permanently
+deletes the song; No closes the confirmation without changing any data.
+
+Deletion also removes the song's stanzas, word occurrences, and phrase
+occurrences in one transaction. Other songs, shared words, word groups and their
+memberships, and phrase definitions remain available. Collection statistics
+count only words occurring in the remaining songs. To recover a deleted song,
+restore an XML backup; restoring replaces the current collection.
+
 ## XML Backup and Restore
 
 The XML functionality is the additional topic implemented in the project.
@@ -416,6 +431,14 @@ Run the automated regression tests after installing `requirements.txt` (the mock
 
 ```sh
 python -m unittest discover -s tests -v
+```
+
+To verify song-deletion cascades against a running Oracle database, opt in to
+the integration test. It creates temporary records and rolls back all its
+changes without deleting existing songs:
+
+```sh
+RUN_ORACLE_INTEGRATION=1 python -m unittest tests.test_song_deletion_oracle -v
 ```
 
 ## Database schema lifecycle

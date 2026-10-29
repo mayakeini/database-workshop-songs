@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 # Session setup
 
 
-def query_set_session_timezone(cursor):
+def query_set_session_timezone(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         "ALTER SESSION SET TIME_ZONE = '+03:00'"
     )
@@ -16,7 +16,7 @@ def query_set_session_timezone(cursor):
 # Shared word and occurrence queries
 
 
-def query_select_word_id_by_text(cursor, word: str):
+def query_select_word_id_by_text(cursor: oracledb.Cursor, word: str) -> None:
     cursor.execute(
         """
         SELECT word_id
@@ -27,7 +27,7 @@ def query_select_word_id_by_text(cursor, word: str):
     )
 
 
-def query_insert_word_returning_id(cursor, word: str, word_id):
+def query_insert_word_returning_id(cursor: oracledb.Cursor, word: str, word_id) -> None:
     cursor.execute(
         """
         INSERT INTO words (
@@ -43,7 +43,7 @@ def query_insert_word_returning_id(cursor, word: str, word_id):
     )
 
 
-def query_insert_group_word(cursor, group_id: int, word_id: int):
+def query_insert_group_word(cursor: oracledb.Cursor, group_id: int, word_id: int) -> None:
     cursor.execute(
         """
         INSERT INTO group_words (
@@ -60,13 +60,7 @@ def query_insert_group_word(cursor, group_id: int, word_id: int):
     )
 
 
-def query_insert_phrase_occurrence(
-    cursor,
-    phrase_id: int,
-    song_id: int,
-    start_occurrence_id: int,
-    end_occurrence_id: int,
-):
+def query_insert_phrase_occurrence(cursor: oracledb.Cursor, phrase_id: int, song_id: int, start_occurrence_id: int, end_occurrence_id: int) -> None:
     cursor.execute(
         """
         INSERT INTO phrase_occurrences (
@@ -89,11 +83,7 @@ def query_insert_phrase_occurrence(
     )
 
 
-def query_select_line_tokens_by_global_number(
-    cursor,
-    song_id: int,
-    global_line_number: int,
-):
+def query_select_line_tokens_by_global_number(cursor: oracledb.Cursor, song_id: int, global_line_number: int) -> None:
     cursor.execute(
         """
         SELECT original_token
@@ -107,12 +97,7 @@ def query_select_line_tokens_by_global_number(
     )
 
 
-def query_select_context_lines(
-    cursor,
-    song_id: int,
-    previous_line: int,
-    next_line: int,
-):
+def query_select_context_lines(cursor: oracledb.Cursor, song_id: int, previous_line: int, next_line: int) -> None:
     cursor.execute(
         """
         SELECT
@@ -135,15 +120,17 @@ def query_select_context_lines(
 # Songs
 
 
-def query_insert_song_returning_id(
-    cursor,
-    title,
-    artist,
-    album,
-    publication_year,
-    upload_date,
-    song_id,
-):
+def query_delete_song(cursor: oracledb.Cursor, song_id: int) -> None:
+    cursor.execute(
+        """
+        DELETE FROM songs
+        WHERE song_id = :song_id
+        """,
+        song_id=song_id,
+    )
+
+
+def query_insert_song_returning_id(cursor: oracledb.Cursor, title: str, artist: str, album: str | None, publication_year: int, upload_date, song_id) -> None:
     cursor.execute(
         """
         INSERT INTO songs (
@@ -171,7 +158,7 @@ def query_insert_song_returning_id(
     )
 
 
-def query_insert_stanza_returning_id(cursor, song_id, stanza_number, stanza_id):
+def query_insert_stanza_returning_id(cursor: oracledb.Cursor, song_id: int, stanza_number: int, stanza_id) -> None:
     cursor.execute(
         """
         INSERT INTO stanzas (
@@ -190,17 +177,7 @@ def query_insert_stanza_returning_id(cursor, song_id, stanza_number, stanza_id):
     )
 
 
-def query_insert_word_occurrence(
-    cursor,
-    word_id,
-    song_id,
-    stanza_id,
-    global_line_number,
-    line_number_in_stanza,
-    position_in_line,
-    position_in_song,
-    original_token,
-):
+def query_insert_word_occurrence(cursor: oracledb.Cursor, word_id: int, song_id: int, stanza_id: int, global_line_number: int, line_number_in_stanza: int, position_in_line: int, position_in_song: int, original_token: str) -> None:
     cursor.execute(
         """
         INSERT INTO word_occurrences (
@@ -235,7 +212,7 @@ def query_insert_word_occurrence(
     )
 
 
-def query_select_song_text_rows(cursor, song_id):
+def query_select_song_text_rows(cursor: oracledb.Cursor, song_id: int) -> None:
     cursor.execute(
         """
         SELECT
@@ -256,7 +233,7 @@ def query_select_song_text_rows(cursor, song_id):
     )
 
 
-def query_count_matching_song(cursor, title, artist, album):
+def query_count_matching_song(cursor: oracledb.Cursor, title: str, artist: str, album: str | None) -> None:
     cursor.execute(
         """
         SELECT COUNT(*)
@@ -277,7 +254,7 @@ def query_count_matching_song(cursor, title, artist, album):
 # Search
 
 
-def query_search_songs(cursor, title=None, artist=None, album=None, publication_year=None):
+def query_search_songs(cursor: oracledb.Cursor, title: str | None = None, artist: str | None = None, album: str | None = None, publication_year: int | None = None) -> None:
     query = """
         SELECT
             song_id,
@@ -296,17 +273,14 @@ def query_search_songs(cursor, title=None, artist=None, album=None, publication_
 
     if title:
         query += " AND LOWER(title) LIKE LOWER(:title)"
-        # the addition of % allow for LIKE comparison
         params["title"] = f"%{title}%"
 
     if artist:
         query += " AND LOWER(artist) LIKE LOWER(:artist)"
-        # the addition of % allow for LIKE comparison
         params["artist"] = f"%{artist}%"
 
     if album:
         query += " AND LOWER(album) LIKE LOWER(:album)"
-        # the addition of % allow for LIKE comparison
         params["album"] = f"%{album}%"
 
     if publication_year:
@@ -318,7 +292,7 @@ def query_search_songs(cursor, title=None, artist=None, album=None, publication_
     cursor.execute(query, params)
 
 
-def query_search_word_occurrences(cursor, word):
+def query_search_word_occurrences(cursor: oracledb.Cursor, word: str) -> None:
     cursor.execute(
         """
         SELECT
@@ -348,17 +322,7 @@ def query_search_word_occurrences(cursor, word):
     )
 
 
-def query_select_word_index(cursor, song_id: int | None = None, group_id: int | None = None) -> None:
-    """Execute a word occurrence index query with optional song and group filters.
-
-    Args:
-        cursor: An open Oracle database cursor.
-        song_id: Limit results to this song, or None for all songs.
-        group_id: Limit results to words belonging to this group, or None for all groups.
-
-    Returns:
-        None. Query results remain available on the supplied cursor.
-    """
+def query_select_word_index(cursor: oracledb.Cursor, song_id: int | None = None, group_id: int | None = None) -> None:
     query = """
         SELECT
             w.text,
@@ -390,12 +354,7 @@ def query_select_word_index(cursor, song_id: int | None = None, group_id: int | 
     cursor.execute(query, {"song_id": song_id, "group_id": group_id})
 
 
-def query_select_line_tokens_by_stanza_position(
-    cursor,
-    song_id,
-    stanza_number,
-    line_number_in_stanza,
-):
+def query_select_line_tokens_by_stanza_position(cursor: oracledb.Cursor, song_id: int, stanza_number: int, line_number_in_stanza: int) -> None:
     cursor.execute(
         """
         SELECT wo.original_token
@@ -413,12 +372,7 @@ def query_select_line_tokens_by_stanza_position(
     )
 
 
-def query_select_word_by_position(
-    cursor,
-    song_id,
-    global_line_number,
-    position_in_line,
-):
+def query_select_word_by_position(cursor: oracledb.Cursor, song_id: int, global_line_number: int, position_in_line: int) -> None:
     cursor.execute(
         """
         SELECT
@@ -440,7 +394,7 @@ def query_select_word_by_position(
 # Word groups
 
 
-def query_select_group_id_by_name(cursor, group_name):
+def query_select_group_id_by_name(cursor: oracledb.Cursor, group_name: str) -> None:
     cursor.execute(
         """
         SELECT group_id
@@ -451,7 +405,7 @@ def query_select_group_id_by_name(cursor, group_name):
     )
 
 
-def query_insert_group_returning_id(cursor, group_name, description, group_id):
+def query_insert_group_returning_id(cursor: oracledb.Cursor, group_name: str, description: str | None, group_id) -> None:
     cursor.execute(
         """
         INSERT INTO word_groups (
@@ -470,7 +424,7 @@ def query_insert_group_returning_id(cursor, group_name, description, group_id):
     )
 
 
-def query_delete_group_word_by_text(cursor, group_id, word):
+def query_delete_group_word_by_text(cursor: oracledb.Cursor, group_id: int, word: str) -> None:
     cursor.execute(
         """
         DELETE FROM group_words
@@ -486,7 +440,7 @@ def query_delete_group_word_by_text(cursor, group_id, word):
     )
 
 
-def query_select_group_words(cursor, group_id):
+def query_select_group_words(cursor: oracledb.Cursor, group_id: int) -> None:
     cursor.execute(
         """
         SELECT
@@ -502,7 +456,7 @@ def query_select_group_words(cursor, group_id):
     )
 
 
-def query_select_groups(cursor):
+def query_select_groups(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -519,7 +473,7 @@ def query_select_groups(cursor):
     )
 
 
-def query_select_group_occurrences(cursor, group_id):
+def query_select_group_occurrences(cursor: oracledb.Cursor, group_id: int) -> None:
     cursor.execute(
         """
         SELECT
@@ -550,7 +504,7 @@ def query_select_group_occurrences(cursor, group_id):
     )
 
 
-def query_update_group(cursor, group_id, group_name, description):
+def query_update_group(cursor: oracledb.Cursor, group_id: int, group_name: str, description: str | None) -> None:
     cursor.execute(
         """
         UPDATE word_groups
@@ -565,7 +519,7 @@ def query_update_group(cursor, group_id, group_name, description):
     )
 
 
-def query_delete_group(cursor, group_id):
+def query_delete_group(cursor: oracledb.Cursor, group_id: int) -> None:
     cursor.execute(
         """
         DELETE FROM word_groups
@@ -578,7 +532,7 @@ def query_delete_group(cursor, group_id):
 # Phrases
 
 
-def query_insert_phrase_returning_id(cursor, phrase_name, phrase_text, phrase_id):
+def query_insert_phrase_returning_id(cursor: oracledb.Cursor, phrase_name: str, phrase_text: str, phrase_id) -> None:
     cursor.execute(
         """
         INSERT INTO phrases (
@@ -597,7 +551,7 @@ def query_insert_phrase_returning_id(cursor, phrase_name, phrase_text, phrase_id
     )
 
 
-def query_select_phrase_search_occurrences(cursor):
+def query_select_phrase_search_occurrences(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -617,11 +571,7 @@ def query_select_phrase_search_occurrences(cursor):
     )
 
 
-def query_select_song_word_occurrences_for_phrases(
-    cursor: oracledb.Cursor,
-    song_id: int,
-) -> None:
-    """Select normalized words and locations from one song for phrase matching."""
+def query_select_song_word_occurrences_for_phrases(cursor: oracledb.Cursor, song_id: int) -> None:
     logger.debug(f"Loading occurrences for phrase matching in song {song_id}")
     cursor.execute(
         """
@@ -640,7 +590,7 @@ def query_select_song_word_occurrences_for_phrases(
     )
 
 
-def query_delete_phrase_occurrences(cursor, phrase_id):
+def query_delete_phrase_occurrences(cursor: oracledb.Cursor, phrase_id: int) -> None:
     cursor.execute(
         """
         DELETE FROM phrase_occurrences
@@ -650,7 +600,7 @@ def query_delete_phrase_occurrences(cursor, phrase_id):
     )
 
 
-def query_select_phrases(cursor):
+def query_select_all_phrases(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -667,7 +617,7 @@ def query_select_phrases(cursor):
     )
 
 
-def query_delete_phrase(cursor, phrase_id):
+def query_delete_phrase(cursor: oracledb.Cursor, phrase_id: int) -> None:
     cursor.execute(
         """
         DELETE FROM phrases
@@ -677,7 +627,7 @@ def query_delete_phrase(cursor, phrase_id):
     )
 
 
-def query_select_phrase_occurrences(cursor, phrase_id):
+def query_select_phrase_occurrences(cursor: oracledb.Cursor, phrase_id: int) -> None:
     cursor.execute(
         """
         SELECT
@@ -705,7 +655,7 @@ def query_select_phrase_occurrences(cursor, phrase_id):
 # Statistics
 
 
-def query_select_database_summary(cursor):
+def query_select_database_summary(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -715,8 +665,8 @@ def query_select_database_summary(cursor):
                 FROM word_occurrences
             ) AS total_words,
             (
-                SELECT COUNT(*)
-                FROM words
+                SELECT COUNT(DISTINCT word_id)
+                FROM word_occurrences
             ) AS unique_words,
             (
                 SELECT ROUND(
@@ -746,7 +696,7 @@ def query_select_database_summary(cursor):
     )
 
 
-def query_select_song_statistics(cursor, song_id):
+def query_select_song_statistics(cursor: oracledb.Cursor, song_id: int) -> None:
     cursor.execute(
         """
         SELECT
@@ -781,7 +731,7 @@ def query_select_song_statistics(cursor, song_id):
     )
 
 
-def query_select_words_by_frequency(cursor, limit, song_id=None, descending=True):
+def query_select_words_by_frequency(cursor: oracledb.Cursor, limit: int, song_id: int | None = None, descending: bool = True) -> None:
     order_direction = "DESC" if descending else "ASC"
     query = f"""
         SELECT
@@ -813,7 +763,7 @@ def query_select_words_by_frequency(cursor, limit, song_id=None, descending=True
     cursor.execute(query, params)
 
 
-def query_select_word_length_distribution(cursor, song_id=None):
+def query_select_word_length_distribution(cursor: oracledb.Cursor, song_id: int | None = None) -> None:
     query = """
         SELECT
             LENGTH(w.text) AS word_length,
@@ -838,7 +788,7 @@ def query_select_word_length_distribution(cursor, song_id=None):
     cursor.execute(query, params)
 
 
-def query_select_words_per_stanza(cursor, song_id):
+def query_select_words_per_stanza(cursor: oracledb.Cursor, song_id: int) -> None:
     cursor.execute(
         """
         SELECT
@@ -863,7 +813,7 @@ def query_select_words_per_stanza(cursor, song_id):
 # XML backup and restore
 
 
-def query_select_songs_for_xml_export(cursor):
+def query_select_songs_for_xml_export(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -882,7 +832,7 @@ def query_select_songs_for_xml_export(cursor):
     )
 
 
-def query_select_stanzas_for_xml_export(cursor):
+def query_select_stanzas_for_xml_export(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -895,7 +845,7 @@ def query_select_stanzas_for_xml_export(cursor):
     )
 
 
-def query_select_words_for_xml_export(cursor):
+def query_select_words_for_xml_export(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -907,7 +857,7 @@ def query_select_words_for_xml_export(cursor):
     )
 
 
-def query_select_word_occurrences_for_xml_export(cursor):
+def query_select_word_occurrences_for_xml_export(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -926,7 +876,7 @@ def query_select_word_occurrences_for_xml_export(cursor):
     )
 
 
-def query_select_word_groups_for_xml_export(cursor):
+def query_select_word_groups_for_xml_export(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -943,7 +893,7 @@ def query_select_word_groups_for_xml_export(cursor):
     )
 
 
-def query_select_group_words_for_xml_export(cursor):
+def query_select_group_words_for_xml_export(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -957,7 +907,7 @@ def query_select_group_words_for_xml_export(cursor):
     )
 
 
-def query_select_phrases_for_xml_export(cursor):
+def query_select_phrases_for_xml_export(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -974,7 +924,7 @@ def query_select_phrases_for_xml_export(cursor):
     )
 
 
-def query_select_phrase_occurrences_for_xml_export(cursor):
+def query_select_phrase_occurrences_for_xml_export(cursor: oracledb.Cursor) -> None:
     cursor.execute(
         """
         SELECT
@@ -989,24 +939,13 @@ def query_select_phrase_occurrences_for_xml_export(cursor):
     )
 
 
-def query_delete_table_data(cursor, table_name):
+def query_delete_table_data(cursor: oracledb.Cursor, table_name: str) -> None:
     cursor.execute(
         f"DELETE FROM {table_name}"
     )
 
 
-def query_insert_word_occurrence_for_xml_restore(
-    cursor,
-    word_id,
-    song_id,
-    stanza_id,
-    global_line_number,
-    line_number_in_stanza,
-    position_in_line,
-    position_in_song,
-    original_token,
-    occurrence_id,
-):
+def query_insert_word_occurrence_for_xml_restore(cursor: oracledb.Cursor, word_id: int, song_id: int, stanza_id: int, global_line_number: int, line_number_in_stanza: int, position_in_line: int, position_in_song: int, original_token: str, occurrence_id) -> None:
     cursor.execute(
         """
         INSERT INTO word_occurrences (
@@ -1043,13 +982,7 @@ def query_insert_word_occurrence_for_xml_restore(
     )
 
 
-def query_insert_word_group_for_xml_restore(
-    cursor,
-    group_name,
-    description,
-    creation_date,
-    group_id,
-):
+def query_insert_word_group_for_xml_restore(cursor: oracledb.Cursor, group_name: str, description: str | None, creation_date, group_id) -> None:
     cursor.execute(
         """
         INSERT INTO word_groups (
@@ -1071,13 +1004,7 @@ def query_insert_word_group_for_xml_restore(
     )
 
 
-def query_insert_phrase_for_xml_restore(
-    cursor,
-    phrase_name,
-    phrase_text,
-    creation_date,
-    phrase_id,
-):
+def query_insert_phrase_for_xml_restore(cursor: oracledb.Cursor, phrase_name: str, phrase_text: str, creation_date, phrase_id) -> None:
     cursor.execute(
         """
         INSERT INTO phrases (
@@ -1100,9 +1027,6 @@ def query_insert_phrase_for_xml_restore(
 
 
 def query_select_uploaded_song_summary(cursor: oracledb.Cursor, song_id: int) -> None:
-    """'
-    Select persisted stanza, line and word counts for a single song.
-    """
     logger.info(f"Selecting upload summary for song id {song_id}")
     cursor.execute(
         """
@@ -1117,14 +1041,6 @@ def query_select_uploaded_song_summary(cursor: oracledb.Cursor, song_id: int) ->
 
 
 def query_select_all_songs_with_counts(cursor: oracledb.Cursor) -> None:
-    """Select each song and its persisted stanza, line and word counts.
-
-    Args:
-        cursor: Open Oracle cursor managed by the calling service.
-
-    Returns:
-        None. The caller fetches the result set from cursor.
-    """
     logger.info("Selecting all songs with their stanza, line and word counts")
     cursor.execute(
         """

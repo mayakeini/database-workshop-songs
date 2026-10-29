@@ -10,7 +10,7 @@ WHENEVER SQLERROR EXIT SQL.SQLCODE;
 
 DECLARE
     TYPE table_name_list IS TABLE OF VARCHAR2(30);
-    table_names table_name_list := table_name_list(
+    table_names table_name_list DEFAULT table_name_list(
         'PHRASE_OCCURRENCES',
         'GROUP_WORDS',
         'WORD_OCCURRENCES',

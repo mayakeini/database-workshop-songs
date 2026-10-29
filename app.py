@@ -1,7 +1,5 @@
 import logging
-
 import streamlit as st
-
 from src.logger_config import setup_logger
 from src.statistics_service import get_database_summary
 

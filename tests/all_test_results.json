@@ -1,0 +1,72 @@
+{
+  "executed_at": "2026-10-27T11:38:31.911498+02:00",
+  "database": "Disposable Oracle, localhost:1522/FREEPDB1",
+  "scope": "One active user session, with sequential operations; concurrency tests are out of scope.",
+  "suites": [
+    {
+      "suite": "Full checklist",
+      "exit_code": 0,
+      "seconds": 73.737,
+      "tests": 41,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "log": "/Users/roilan01/university/database-workshop-songs/tests/all_checklist.log",
+      "summary": "OK (skipped=1)",
+      "passed": 40,
+      "failed_cases": [],
+      "skipped_cases": [
+        "test_WB14_concurrency_races (__main__.Checklist.test_WB14_concurrency_races) ... skipped 'Out of scope: one active user session with sequential operations'"
+      ]
+    },
+    {
+      "suite": "Discovered regression suite",
+      "exit_code": 1,
+      "seconds": 2.039,
+      "tests": 64,
+      "failures": 1,
+      "errors": 3,
+      "skipped": 1,
+      "log": "/Users/roilan01/university/database-workshop-songs/tests/all_regressions.log",
+      "summary": "FAILED (failures=1, errors=3, skipped=1)",
+      "passed": 59,
+      "failed_cases": [
+        "test_adding_same_word_to_group_is_friendly_error (test_database_service.BusinessTransactionTests.test_adding_same_word_to_group_is_friendly_error)",
+        "test_create_group_with_first_word_is_atomic (test_database_service.BusinessTransactionTests.test_create_group_with_first_word_is_atomic)",
+        "test_renaming_group_to_existing_name_is_friendly_error (test_database_service.BusinessTransactionTests.test_renaming_group_to_existing_name_is_friendly_error)",
+        "test_no_oneoff_publication_year_script_in_submission (test_schema_contract.SchemaContractTests.test_no_oneoff_publication_year_script_in_submission)"
+      ],
+      "skipped_cases": [
+        "test_concurrent_operations_have_independent_transactions (test_database_service.DatabaseServiceTests.test_concurrent_operations_have_independent_transactions) ... skipped 'Out of scope: one active user session with sequential operations'"
+      ]
+    },
+    {
+      "suite": "Restore integration verification",
+      "exit_code": 0,
+      "seconds": 6.962,
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "/Users/roilan01/university/database-workshop-songs/tests/all_restore.log",
+      "summary": "OK",
+      "passed": 3,
+      "failed_cases": [],
+      "skipped_cases": []
+    },
+    {
+      "suite": "Selector integration verification",
+      "exit_code": 0,
+      "seconds": 7.828,
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": "/Users/roilan01/university/database-workshop-songs/tests/all_selectors.log",
+      "summary": "OK",
+      "passed": 5,
+      "failed_cases": [],
+      "skipped_cases": []
+    }
+  ]
+}

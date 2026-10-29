@@ -2,10 +2,8 @@ import logging
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
-
 import oracledb
 import streamlit as st
-
 from src.queries import db_queries
 
 logger = logging.getLogger(__name__)
@@ -69,10 +67,11 @@ class DatabaseService:
         self.oracle_con_pool.close()
 
 
-def _initialize_session(connection: oracledb.Connection) -> None:
+def _initialize_session(connection: oracledb.Connection, _) -> None:
     """
     Initialize each new pooled session before it is handed to a caller.
-    :param connection: an oracle connection pool
+    Oracle passes 2 arguments but the fucntion only needs one. so use _ as placeholder for the second parameter
+    :param connection: The Oracle connection being initialized.
     :return: None
     """
     with connection.cursor() as cursor:

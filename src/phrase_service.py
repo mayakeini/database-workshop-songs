@@ -1,20 +1,16 @@
 import oracledb
 import logging
 from typing import List, Tuple
-
 from src.db import get_database_service
+from src.text_parser import _normalize_word
 from src.queries.db_queries import (
-    query_delete_phrase,
-    query_delete_phrase_occurrences,
-    query_insert_phrase_occurrence,
-    query_insert_phrase_returning_id,
-    query_select_context_lines,
-    query_select_phrase_occurrences,
-    query_select_phrase_search_occurrences,
-    query_select_phrases,
+    query_delete_phrase, query_delete_phrase_occurrences,
+    query_insert_phrase_occurrence, query_insert_phrase_returning_id,
+    query_select_context_lines, query_select_phrase_occurrences,
+    query_select_phrase_search_occurrences, query_select_all_phrases,
     query_select_song_word_occurrences_for_phrases
 )
-from src.text_parser import _normalize_word
+
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +25,7 @@ def refresh_existing_phrases_for_song(cursor: oracledb.Cursor, song_id: int) -> 
     :return: Number of newly inserted phrase occurrences.
     """
     logger.info(f"Updating existing phrases for new song id {song_id}")
-    query_select_phrases(cursor)
+    query_select_all_phrases(cursor)
     phrases = [(row[0], row[2]) for row in cursor.fetchall()]
     if not phrases:
         logger.info(f"No existing phrases to update for song id {song_id}")
@@ -40,7 +36,11 @@ def refresh_existing_phrases_for_song(cursor: oracledb.Cursor, song_id: int) -> 
     inserted_count = 0
 
     for phrase_id, phrase_text in phrases:
-        words = [normalized for token in phrase_text.split() if (normalized := _normalize_word(token))]
+        words = []
+        for token in phrase_text.split():
+            normalized = _normalize_word(token)
+            if normalized:
+                words.append(normalized)
 
         if not words:
             logger.warning(f"Skipping phrase id {phrase_id} without valid words")
@@ -210,7 +210,11 @@ def create_and_search_phrase(phrase_name: str, phrase_text: str) -> int:
     """
     phrase_name = phrase_name.strip()
     phrase_text = phrase_text.strip()
-    normalized_words = [normalized for token in phrase_text.split() if (normalized := _normalize_word(token))]
+    normalized_words = []
+    for token in phrase_text.split():
+        normalized = _normalize_word(token)
+        if normalized:
+            normalized_words.append(normalized)
     if not phrase_name:
         logger.warning("Phrase creation rejected: empty name")
         raise ValueError("Phrase name cannot be empty")
@@ -276,7 +280,7 @@ def get_phrases() -> list[tuple[int, str, str, object]]:
 
     try:
         with get_database_service().read_cursor() as cursor:
-            query_select_phrases(cursor)
+            query_select_all_phrases(cursor)
             result = cursor.fetchall()
             logger.info(f'Fetched {len(result)} phrases')
             return result

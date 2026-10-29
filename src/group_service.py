@@ -1,21 +1,13 @@
 import logging
 from typing import Any
-
 import oracledb
-
 from src.db import get_database_service
-from src.queries.db_queries import (
-    query_delete_group,
-    query_delete_group_word_by_text,
-    query_insert_group_returning_id,
-    query_insert_group_word,
-    query_select_group_id_by_name,
-    query_select_group_occurrences,
-    query_select_group_words,
-    query_select_groups,
-    query_select_word_id_by_text,
-    query_update_group,
-)
+from src.queries.db_queries import query_delete_group,
+    query_delete_group_word_by_text, query_insert_group_returning_id,
+    query_insert_group_word, query_select_group_id_by_name, query_select_group_occurrences,
+    query_select_group_words, query_select_groups,
+    query_select_word_id_by_text, query_update_group
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +19,7 @@ def create_group(group_name: str, description: str | None = None, first_word: st
     :param group_name: The name of the group.
     :param description: Optional description of the group.
     :param first_word: Required initial word, already present in the database.
-    :return:nThe ID of the newly created group.
+    :return: The ID of the newly created group.
     """
     group_name = group_name.strip()
     first_word = first_word.strip().lower()
@@ -59,13 +51,7 @@ def create_group(group_name: str, description: str | None = None, first_word: st
 
             group_id_var = cursor.var(int)
 
-            try:
-                query_insert_group_returning_id(cursor, group_name=group_name, description=description, group_id=group_id_var)
-            except oracledb.IntegrityError as error:
-                if error.args and getattr(error.args[0], "code", None) == 1:
-                    logger.warning(f"Oracle rejected duplicate group name '{group_name}'")
-                    raise ValueError(f"A group named '{group_name}' already exists.")
-                raise
+            query_insert_group_returning_id(cursor, group_name=group_name, description=description, group_id=group_id_var)
 
             group_id = group_id_var.getvalue()[0]
             query_insert_group_word(cursor, group_id, int(first_word_row[0]))

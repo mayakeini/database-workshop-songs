@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 from src.db import get_database_service
 from src.queries.db_queries import (
     query_count_matching_song,
+    query_delete_song,
     query_insert_song_returning_id,
     query_insert_stanza_returning_id,
     query_insert_word_occurrence,
@@ -45,7 +46,10 @@ def insert_song(file_path: str, title: str, artist: str, album: str | None, publ
 
     if song_exists(title=title, artist=artist, album=album):
         logger.warning(f"Song insertion rejected because it already exists: '{title}' by '{artist}'")
-        raise ValueError(f"The song '{title}' by '{artist}' already exists.")
+        if album:
+          raise ValueError(f"The song '{title}' ({album}) by '{artist}' already exists.")
+        else:
+          raise ValueError(f"The song '{title}' by '{artist}' already exists.")
 
     occurrences = parse_song(file_path)
 
@@ -294,4 +298,29 @@ def get_all_songs_with_counts() -> list[dict[str, str | int | None]]:
 
     except Exception as e:
         logger.error(f"Failed to load all songs with counts due to {e}")
+        raise
+
+
+def delete_song(song_id: int) -> bool:
+    """
+    Delete a song and its stanzas and occurrences in one transaction.
+    Shared words, groups and phrase definitions are preserved.
+    :param song_id: ID of the song to delete.
+    :return: True if the song was deleted, False if it no longer exists.
+    """
+    logger.info("Deleting song id %s", song_id)
+
+    try:
+        with get_database_service().transaction() as cursor:
+            query_delete_song(cursor, song_id)
+            deleted = cursor.rowcount > 0
+
+        if deleted:
+            logger.info("Song id %s deleted successfully", song_id)
+        else:
+            logger.warning("Song id %s was not found", song_id)
+        return deleted
+
+    except Exception:
+        logger.exception("Failed to delete song id %s", song_id)
         raise

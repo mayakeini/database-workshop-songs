@@ -1,0 +1,158 @@
+{
+  "tests_run": 5,
+  "failures": 0,
+  "errors": 0,
+  "results": [
+    {
+      "test": "test_BB14_index_csv",
+      "status": "PASS",
+      "seconds": 1.412,
+      "detail": ""
+    },
+    {
+      "test": "test_BB15_group_index_filters",
+      "status": "PASS",
+      "seconds": 1.438,
+      "detail": ""
+    },
+    {
+      "test": "test_BB21_statistics",
+      "status": "PASS",
+      "seconds": 1.422,
+      "detail": ""
+    },
+    {
+      "test": "test_BB26_same_name_different_albums",
+      "status": "PASS",
+      "seconds": 1.37,
+      "detail": ""
+    },
+    {
+      "test": "test_album_selection_returns_each_songs_data",
+      "status": "PASS",
+      "seconds": 1.626,
+      "detail": ""
+    }
+  ],
+  "observations": {
+    "test_BB21_statistics": {
+      "database_statistics": {
+        "song_count": 9,
+        "total_words": 2379,
+        "unique_words": 454,
+        "average_word_length": 3.91,
+        "average_words_per_line": 6.33
+      },
+      "example_metrics": {
+        "Stanzas": "2",
+        "Lines": "4",
+        "Words": "16",
+        "Unique Words": "13",
+        "Average Word Length": "4"
+      },
+      "chart_count": 3,
+      "chart_data": [
+        [
+          {
+            "Word": "is",
+            "Occurrences": 3
+          },
+          {
+            "Word": "love",
+            "Occurrences": 2
+          },
+          {
+            "Word": "air",
+            "Occurrences": 1
+          },
+          {
+            "Word": "and",
+            "Occurrences": 1
+          },
+          {
+            "Word": "beautiful",
+            "Occurrences": 1
+          },
+          {
+            "Word": "everywhere",
+            "Occurrences": 1
+          },
+          {
+            "Word": "hello",
+            "Occurrences": 1
+          },
+          {
+            "Word": "in",
+            "Occurrences": 1
+          },
+          {
+            "Word": "my",
+            "Occurrences": 1
+          },
+          {
+            "Word": "song",
+            "Occurrences": 1
+          }
+        ],
+        [
+          {
+            "Word Length": 2,
+            "Occurrences": 5
+          },
+          {
+            "Word Length": 3,
+            "Occurrences": 3
+          },
+          {
+            "Word Length": 4,
+            "Occurrences": 4
+          },
+          {
+            "Word Length": 5,
+            "Occurrences": 2
+          },
+          {
+            "Word Length": 9,
+            "Occurrences": 1
+          },
+          {
+            "Word Length": 10,
+            "Occurrences": 1
+          }
+        ],
+        [
+          {
+            "Stanza": 1,
+            "Word Count": 7
+          },
+          {
+            "Stanza": 2,
+            "Word Count": 9
+          }
+        ]
+      ]
+    },
+    "test_BB26_same_name_different_albums": {
+      "selector_options": {
+        "pages/3_word_index.py": [
+          "Example \u2014 Test Artist \u2014 No album (ID: 473)",
+          "Example \u2014 Test Artist \u2014 Other Album (ID: 482)"
+        ],
+        "pages/6_statistics.py": [
+          "Example \u2014 Test Artist \u2014 No album (ID: 473)",
+          "Example \u2014 Test Artist \u2014 Other Album (ID: 482)"
+        ],
+        "pages/8_all_songs.py": [
+          "Example \u2014 Test Artist (ID: 473)",
+          "Example \u2014 Test Artist (ID: 482)"
+        ]
+      }
+    },
+    "test_album_selection_returns_each_songs_data": {
+      "selected_song_counts": {
+        "483": 16,
+        "492": 367
+      }
+    }
+  }
+}

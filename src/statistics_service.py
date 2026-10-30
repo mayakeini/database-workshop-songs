@@ -2,27 +2,15 @@ import logging
 from typing import Optional
 
 from src.db import get_database_service
-from src.queries.db_queries import (
-    query_select_database_summary,
-    query_select_song_statistics,
-    query_select_word_length_distribution,
-    query_select_words_by_frequency,
-    query_select_words_per_stanza,
-)
+from src.queries.db_queries import query_select_database_summary, query_select_song_statistics,
+    query_select_word_length_distribution, query_select_words_by_frequency, query_select_words_per_stanza
 
 logger = logging.getLogger(__name__)
 
 
-def get_database_summary() -> dict[str, int | float]:
+def get_database_summary() -> dict:
     """
     Returns general statistics for the entire database.
-    The statistics include:
-    - Number of songs.
-    - Total number of word occurrences.
-    - Number of unique words.
-    - Average word length across all word occurrences.
-    - Average number of words per line.
-    Word length is calculated dynamically using the WORDS.text column and is not stored separately in the database.
     :return: A dictionary containing the calculated statistics.
     """
     logger.info("Fetching database summary statistics")
@@ -47,7 +35,7 @@ def get_database_summary() -> dict[str, int | float]:
         raise
 
 
-def get_song_statistics(song_id: int) -> Optional[dict[str, int | float | str]]:
+def get_song_statistics(song_id: int) -> dict:
     """
     Returns statistics for a specific song.
     Word length is calculated dynamically using the WORDS.text column and is not stored separately in the database.
@@ -89,9 +77,9 @@ def get_most_frequent_words(limit: int = 10, song_id: Optional[int] = None) -> l
     :param song_id: Optional song ID. If provided, statistics are calculated only for that song.
     :return: A list of tuples in the format: [(word, occurrence_count), ...]
     """
-    if limit <= 0:
-        logger.warning(f'Invalid frequency result limit: {limit}')
-        raise ValueError("Limit must be greater than zero")
+    if limit < 1:
+        logger.warning(f'Invalid frequency result limit: {limit} - set limit to 1')
+        limit = 1
 
     logger.info(f"Fetching {limit} most frequent words{f' for song id {song_id}' if song_id is not None else ''}")
 
@@ -120,9 +108,9 @@ def get_rarest_words(limit: int = 10, song_id: Optional[int] = None) -> list[tup
     :param song_id: Optional song ID. If provided, statistics are calculated only for that song.
     :return: A list of tuples in the format: [(word, occurrence_count), ...]
     """
-    if limit <= 0:
-        logger.warning(f'Invalid rare-word result limit: {limit}')
-        raise ValueError("Limit must be greater than zero")
+    if limit < 1:
+        logger.warning(f'Invalid rare-word result limit: {limit} - set limit to 1')
+        limit = 1
 
     logger.info(f"Fetching {limit} rarest words{f' for song id {song_id}' if song_id is not None else ''}")
 
@@ -144,7 +132,7 @@ def get_rarest_words(limit: int = 10, song_id: Optional[int] = None) -> list[tup
         raise
 
 
-def get_word_length_distribution(song_id: Optional[int] = None) -> list[tuple[int, int]]:
+def get_word_length_distribution(song_id: int = None) -> list:
     """
     Returns the distribution of word lengths.
     Word length is calculated dynamically using LENGTH(words.text).
@@ -165,7 +153,7 @@ def get_word_length_distribution(song_id: Optional[int] = None) -> list[tuple[in
         raise
 
 
-def get_words_per_stanza(song_id: int) -> list[tuple[int, int]]:
+def get_words_per_stanza(song_id: int) -> list:
     """
     Returns the number of words in each stanza of a song.
     :param song_id: The database ID of the song.

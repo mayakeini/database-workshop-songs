@@ -1,26 +1,42 @@
 import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
-
 from src.db import get_database_service
-from src.queries.db_queries import (
-    query_count_matching_song,
-    query_delete_song,
-    query_insert_song_returning_id,
-    query_insert_stanza_returning_id,
-    query_insert_word_occurrence,
-    query_insert_word_returning_id,
-    query_select_line_tokens_by_global_number,
-    query_select_song_text_rows,
-    query_select_word_id_by_text,
-    query_select_uploaded_song_summary,
-    query_select_all_songs_with_counts
-)
+from src.queries.db_queries import *
 from src.text_parser import parse_song
 from src.phrase_service import refresh_existing_phrases_for_song
 
 logger = logging.getLogger(__name__)
 
+
+def song_exists(title: str, artist: str, album: str | None) -> bool:
+    """
+    Checks whether a song with the same title, artist, and album already exists in the database.
+    The comparison is case-insensitive.
+    :param title: Song title.
+    :param artist: Artist name.
+    :param album: Album name, or None if no album was provided.
+    :return: True if a matching song already exists, otherwise False.
+    """
+    logger.info(f"Checking whether song already exists: title='{title}', artist='{artist}', album='{album}'")
+
+    try:
+        with get_database_service().read_cursor() as cursor:
+            query_count_matching_song(
+                cursor,
+                title=title,
+                artist=artist,
+                album=album
+            )
+            count = cursor.fetchone()[0]
+            exists = count > 0
+            logger.info(f'Song existence check completed. Exists={exists}')
+            return exists
+
+    except Exception as e:
+        logger.error(f"Failed to check whether song '{title}' already exists due to {e}")
+        raise
+        
 
 def insert_song(file_path: str, title: str, artist: str, album: str | None, publication_year: int) -> int:
     """
@@ -44,7 +60,7 @@ def insert_song(file_path: str, title: str, artist: str, album: str | None, publ
         logger.warning(f'Song insertion rejected due to invalid publication year: {publication_year}')
         raise ValueError(f"Publication year must be between 1000 and {current_year}.")
 
-    if song_exists(title=title, artist=artist, album=album):
+    if song_exists(title, artist, album):
         logger.warning(f"Song insertion rejected because it already exists: '{title}' by '{artist}'")
         if album:
           raise ValueError(f"The song '{title}' ({album}) by '{artist}' already exists.")
@@ -142,10 +158,10 @@ def insert_song(file_path: str, title: str, artist: str, album: str | None, publ
 
 def get_line(song_id: int, global_line_number: int) -> str:
     """
-    Reconstructs a specific line of a song.
+    get a specific line of a song.
     :param song_id: The database ID of the song.
     :param global_line_number: The global line number in the song.
-    :return: The reconstructed song line. Returns an empty string if the requested line does not exist.
+    :return: The complete song line. Returns an empty string if the requested line does not exist.
     """
     logger.info(f'Fetching line {global_line_number} for song id {song_id}')
 
@@ -164,10 +180,10 @@ def get_line(song_id: int, global_line_number: int) -> str:
 
 def get_song_text(song_id: int) -> str:
     """
-    Reconstructs the complete text of a song from its word occurrences.
+    get the complete text of a song from its word occurrences.
     Blank lines are inserted between stanzas.
     :param song_id: The database ID of the song.
-    :return: The reconstructed song text. Returns an empty string if the song has no word occurrences.
+    :return: The complete song text. Returns an empty string if the song has no word occurrences.
     """
     logger.info(f'Fetching complete text for song id {song_id}')
 
@@ -185,7 +201,7 @@ def get_song_text(song_id: int) -> str:
             current_line: int | None = None
             line_tokens: list[str] = []
 
-            for (stanza_number, line_number, position, token) in rows:
+            for stanza_number, line_number, position, token in rows:
                 if current_stanza is not None and stanza_number != current_stanza:
                     if line_tokens:
                         result.append(" ".join(line_tokens))
@@ -210,35 +226,6 @@ def get_song_text(song_id: int) -> str:
 
     except Exception as e:
         logger.error(f'Failed to reconstruct text for song id {song_id} due to {e}')
-        raise
-
-
-def song_exists(title: str, artist: str, album: str | None) -> bool:
-    """
-    Checks whether a song with the same title, artist, and album already exists in the database.
-    The comparison is case-insensitive.
-    :param title: Song title.
-    :param artist: Artist name.
-    :param album: Album name, or None if no album was provided.
-    :return: True if a matching song already exists, otherwise False.
-    """
-    logger.info(f"Checking whether song already exists: title='{title}', artist='{artist}', album='{album}'")
-
-    try:
-        with get_database_service().read_cursor() as cursor:
-            query_count_matching_song(
-                cursor,
-                title=title,
-                artist=artist,
-                album=album
-            )
-            count = cursor.fetchone()[0]
-            exists = count > 0
-            logger.info(f'Song existence check completed. Exists={exists}')
-            return exists
-
-    except Exception as e:
-        logger.error(f"Failed to check whether song '{title}' already exists due to {e}")
         raise
 
 
@@ -303,10 +290,10 @@ def get_all_songs_with_counts() -> list[dict[str, str | int | None]]:
 
 def delete_song(song_id: int) -> bool:
     """
-    Delete a song and its stanzas and occurrences in one transaction.
+    Delete a single song and its stanzas and occurrences in one transaction.
     Shared words, groups and phrase definitions are preserved.
     :param song_id: ID of the song to delete.
-    :return: True if the song was deleted, False if it no longer exists.
+    :return: True if the song was deleted, False if some failure to delete
     """
     logger.info("Deleting song id %s", song_id)
 

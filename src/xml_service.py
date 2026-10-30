@@ -5,6 +5,7 @@ from typing import Any
 from src.db import get_database_service
 from src.queries import db_queries
 
+
 logger = logging.getLogger(__name__)
 
 

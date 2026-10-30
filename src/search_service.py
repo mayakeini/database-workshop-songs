@@ -1,16 +1,7 @@
 import logging
 from typing import Any
-
 from src.db import get_database_service
-from src.queries.db_queries import (
-    query_search_songs,
-    query_search_word_occurrences,
-    query_select_context_lines,
-    query_select_line_tokens_by_global_number,
-    query_select_line_tokens_by_stanza_position,
-    query_select_word_by_position,
-    query_select_word_index
-)
+from src.queries.db_queries import *
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +27,7 @@ def search_songs(title=None, artist=None, album=None, publication_year=None) -> 
         return cursor.fetchall()
 
 
-def search_word(word: str) -> list[tuple[Any, ...]]:
+def search_word(word: str) -> list[tuple]:
     """
     Search words
     :param word: str of the word

@@ -1,18 +1,14 @@
 import re
 from typing import List
-
 import logging
+
 
 logger = logging.getLogger(__name__)
 
 
 def _normalize_word(word: str) -> str:
     """
-    Converts a word into its normalized form for searching.
-    Example:
-    'Hello,' -> 'hello'
-    'world!' -> 'world'
-
+    Converts a word into its normalized (lower-case, no special chars) form for searching.
     :param word: word to normalize
     :return: normalized word as string
     """

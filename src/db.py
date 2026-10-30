@@ -67,7 +67,7 @@ class DatabaseService:
         self.oracle_con_pool.close()
 
 
-def _initialize_session(connection: oracledb.Connection, _) -> None:
+def initialize_session(connection: oracledb.Connection, _) -> None:
     """
     Initialize each new pooled session before it is handed to a caller.
     Oracle passes 2 arguments but the fucntion only needs one. so use _ as placeholder for the second parameter
@@ -104,7 +104,7 @@ def get_database_service() -> DatabaseService:
         increment=1,
         getmode=oracledb.POOL_GETMODE_TIMEDWAIT,
         wait_timeout=5000,
-        session_callback=_initialize_session,
+        session_callback=initialize_session,
     )
 
     logger.info("Oracle connection pool created")

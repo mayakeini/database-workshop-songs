@@ -1,7 +1,5 @@
 import logging
-
 import streamlit as st
-
 from src.logger_config import setup_logger
 from src.song_service import delete_song, get_all_songs_with_counts
 

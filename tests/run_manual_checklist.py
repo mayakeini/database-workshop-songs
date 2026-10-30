@@ -46,7 +46,7 @@ class Checklist(unittest.TestCase):
 
     def setUp(self):
         if type(self).baseline is not None:
-            xml.restore_database_from_xml(type(self).baseline)
+            xml.import_database_from_xml(type(self).baseline)
 
     def note(self, **details):
         self.observations.setdefault(self._testMethodName, {}).update(details)
@@ -535,7 +535,7 @@ class Checklist(unittest.TestCase):
         original = raw_snapshot()
         # Empty all tables inside the isolated schema to cover new vocabulary too.
         empty = b'<concordance_backup><songs/><stanzas/><words/><word_occurrences/><word_groups/><group_words/><phrases/><phrase_occurrences/></concordance_backup>'
-        xml.restore_database_from_xml(empty)
+        xml.import_database_from_xml(empty)
         before = raw_snapshot()
         real_insert = songs.query_insert_word_occurrence
         calls = 0
@@ -601,7 +601,7 @@ class Checklist(unittest.TestCase):
         backup = xml.export_database_to_xml()
         original = semantic_snapshot()
         old_ids = {r[0] for r in query("SELECT song_id FROM songs")}
-        xml.restore_database_from_xml(backup)
+        xml.import_database_from_xml(backup)
         new_ids = {r[0] for r in query("SELECT song_id FROM songs")}
         self.assertTrue(old_ids.isdisjoint(new_ids))
         self.assertEqual(semantic_snapshot(), original)
@@ -609,7 +609,7 @@ class Checklist(unittest.TestCase):
         root = ET.fromstring(backup)
         root.find("phrase_occurrences/phrase_occurrence/end_occurrence_id").text = "999999999"
         with self.assertRaises(KeyError):
-            xml.restore_database_from_xml(ET.tostring(root))
+            xml.import_database_from_xml(ET.tostring(root))
         self.assertEqual(raw_snapshot(), before)
 
     def test_WB11_constraints(self):
@@ -779,7 +779,7 @@ def main():
     (TESTS / "checklist_results.json").write_text(json.dumps(report, indent=2, default=str) + "\n")
     # Leave a known baseline for browser verification. Only the disposable DB changes.
     if Checklist.baseline:
-        xml.restore_database_from_xml(Checklist.baseline)
+        xml.import_database_from_xml(Checklist.baseline)
     db.get_database_service().close()
     db.get_database_service.clear()
     return 0 if result.wasSuccessful() else 1

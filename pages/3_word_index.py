@@ -2,9 +2,7 @@ import csv
 import io
 import logging
 from typing import Any
-
 import streamlit as st
-
 from src.group_service import get_groups
 from src.logger_config import setup_logger
 from src.search_service import get_word_index, search_songs

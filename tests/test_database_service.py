@@ -174,7 +174,7 @@ class DatabaseServiceTests(unittest.TestCase):
             connection.__exit__.assert_called_once()
 
     def test_session_timezone_is_initialized_and_cursor_closed(self):
-        db._initialize_session(self.connection, None)
+        db.initialize_session(self.connection, None)
         self.cursor.execute.assert_called_once_with(
             "ALTER SESSION SET TIME_ZONE = '+03:00'"
         )
@@ -183,7 +183,7 @@ class DatabaseServiceTests(unittest.TestCase):
     def test_session_initialization_failure_closes_cursor_and_propagates(self):
         self.cursor.execute.side_effect = RuntimeError("session setup failed")
         with self.assertRaisesRegex(RuntimeError, "session setup failed"):
-            db._initialize_session(self.connection, None)
+            db.initialize_session(self.connection, None)
         self.cursor.__exit__.assert_called_once()
 
     def test_close_releases_pool(self):
@@ -206,7 +206,7 @@ class DatabaseFactoryTests(unittest.TestCase):
         self.assertEqual(settings["dsn"], "localhost:1521/FREEPDB1")
         self.assertEqual(settings["user"], "concordance")
         self.assertEqual(settings["password"], "songsproject")
-        self.assertIs(settings["session_callback"], db._initialize_session)
+        self.assertIs(settings["session_callback"], db.initialize_session)
 
     @patch.dict(os.environ, {
         "ORACLE_HOST": "db.example",
@@ -356,7 +356,7 @@ class BusinessTransactionTests(unittest.TestCase):
         </concordance_backup>""".encode()
 
     def test_xml_restore_commits_deletions_and_inserts_once(self):
-        counts = xml_service.restore_database_from_xml(self.restore_xml())
+        counts = xml_service.import_database_from_xml(self.restore_xml())
         self.assertEqual(counts["songs"], 1)
         self.assertEqual(counts["stanzas"], 1)
         statements = [call.args[0] for call in self.cursor.execute.call_args_list]
@@ -369,7 +369,7 @@ class BusinessTransactionTests(unittest.TestCase):
     def test_invalid_xml_reference_rolls_back_deletions_and_prior_inserts(self):
         with self.assertLogs("src.xml_service", level="ERROR"):
             with self.assertRaises(KeyError):
-                xml_service.restore_database_from_xml(self.restore_xml(stanza_song_id=999))
+                xml_service.import_database_from_xml(self.restore_xml(stanza_song_id=999))
         statements = [call.args[0] for call in self.cursor.execute.call_args_list]
         self.assertEqual(sum("DELETE FROM" in sql for sql in statements), 8)
         self.assertTrue(any("INSERT INTO songs" in sql for sql in statements))

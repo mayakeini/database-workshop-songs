@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _normalize_word(word: str) -> str:
+def normalize_word(word: str) -> str:
     """
     Converts a word into its normalized (lower-case, no special chars) form for searching.
     :param word: word to normalize
@@ -60,7 +60,7 @@ def parse_song(file_path: str) -> List[dict]:
             leading_punctuation = ""
 
             for token in tokens:
-                normalized = _normalize_word(token)
+                normalized = normalize_word(token)
                 if not normalized:
                     if words_on_line:
                         words_on_line[-1]["original_token"] += token

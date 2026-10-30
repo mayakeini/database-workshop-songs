@@ -2,7 +2,7 @@ import oracledb
 import logging
 from typing import List, Tuple
 from src.db import get_database_service
-from src.text_parser import _normalize_word
+from src.text_parser import normalize_word
 from src.queries.db_queries import (
     query_delete_phrase, query_delete_phrase_occurrences,
     query_insert_phrase_occurrence, query_insert_phrase_returning_id,
@@ -38,7 +38,7 @@ def refresh_existing_phrases_for_song(cursor: oracledb.Cursor, song_id: int) -> 
     for phrase_id, phrase_text in phrases:
         words = []
         for token in phrase_text.split():
-            normalized = _normalize_word(token)
+            normalized = normalize_word(token)
             if normalized:
                 words.append(normalized)
 
@@ -120,7 +120,7 @@ def find_phrase_occurrences(phrase_id: int, phrase_text: str) -> List[Tuple[int,
     :param phrase_text: The phrase text to search for.
     return: A list of tuples containing: (song_id, start_occurrence_id, end_occurrence_id, global_line_number)
     """
-    normalized_words = [_normalize_word(token) for token in phrase_text.split()]
+    normalized_words = [normalize_word(token) for token in phrase_text.split()]
     normalized_words = [word for word in normalized_words if word]
 
     if not normalized_words:
@@ -212,7 +212,7 @@ def create_and_search_phrase(phrase_name: str, phrase_text: str) -> int:
     phrase_text = phrase_text.strip()
     normalized_words = []
     for token in phrase_text.split():
-        normalized = _normalize_word(token)
+        normalized = normalize_word(token)
         if normalized:
             normalized_words.append(normalized)
     if not phrase_name:

@@ -2,11 +2,7 @@ import logging
 from typing import Any
 import oracledb
 from src.db import get_database_service
-from src.queries.db_queries import query_delete_group,
-    query_delete_group_word_by_text, query_insert_group_returning_id,
-    query_insert_group_word, query_select_group_id_by_name, query_select_group_occurrences,
-    query_select_group_words, query_select_groups,
-    query_select_word_id_by_text, query_update_group
+from src.queries.db_queries import *
 
 
 logger = logging.getLogger(__name__)
@@ -189,7 +185,7 @@ def get_groups() -> list[tuple[Any, ...]]:
         raise
 
 
-def get_group_occurrences(group_id: int) -> list[tuple[Any, ...]]:
+def get_group_occurrences(group_id: int) -> list:
     """
     Returns all occurrences of words belonging to a word group.
     :param group_id: The ID of the group.

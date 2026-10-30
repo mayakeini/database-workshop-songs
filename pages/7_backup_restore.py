@@ -6,7 +6,7 @@ import streamlit as st
 from src.logger_config import setup_logger
 from src.xml_service import (
     export_database_to_xml,
-    restore_database_from_xml
+    import_database_from_xml
 )
 
 setup_logger()
@@ -91,7 +91,7 @@ def render_restore() -> None:
 
     try:
         xml_data = uploaded_file.getvalue()
-        counts = restore_database_from_xml(xml_data=xml_data)
+        counts = import_database_from_xml(xml_data=xml_data)
 
         # Restore generates new IDs, so cached occurrences are no longer valid.
         st.session_state["word_search_results"] = None

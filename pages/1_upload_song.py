@@ -2,18 +2,15 @@ from datetime import datetime
 import logging
 import tempfile
 from pathlib import Path
-
 import streamlit as st
-
 from src.logger_config import setup_logger
 from src.song_service import insert_song, get_uploaded_song_summary
 
 setup_logger()
-
 logger = logging.getLogger(__name__)
 
 
-def save_uploaded_file(uploaded_file: st.runtime.uploaded_file_manager.UploadedFile) -> str:
+def save_uploaded_file(uploaded_file) -> str:
     """
     Saves an uploaded Streamlit file to a temporary local file.
     :param uploaded_file: The TXT file uploaded by the user.
@@ -35,7 +32,7 @@ def save_uploaded_file(uploaded_file: st.runtime.uploaded_file_manager.UploadedF
 
 
 
-def validate_uploaded_txt_file(uploaded_file: st.runtime.uploaded_file_manager.UploadedFile) -> None:
+def validate_uploaded_txt_file(uploaded_file) -> None:
     """
     Validate that an upload is a readable UTF-8 TXT file.
     :param uploaded_file: File supplied by the Streamlit uploader.

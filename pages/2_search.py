@@ -1,23 +1,12 @@
 import logging
 from typing import Any
-
 from datetime import datetime
-
 import streamlit as st
-
 from src.logger_config import setup_logger
-from src.search_service import (
-    search_songs,
-    search_word,
-    get_context,
-    find_line_by_global_number,
-    find_line_by_stanza_position,
-    find_word_by_position
-)
+from src.search_service import *
 from src.song_service import get_song_text
 
 setup_logger()
-
 logger = logging.getLogger(__name__)
 
 
@@ -31,7 +20,7 @@ def format_upload_date(upload_date: Any) -> str:
     return upload_date.rsplit(" ", maxsplit=1)[0]
 
 
-def display_song_results(results: list[tuple[Any, ...]]) -> None:
+def display_song_results(results: list) -> None:
     """
     Displays song metadata search results.
     Each matching song is displayed inside an expandable section containing its metadata and the reconstructed full
@@ -48,12 +37,12 @@ def display_song_results(results: list[tuple[Any, ...]]) -> None:
     st.success(f"Found {len(results)} song{'s' if len(results) != 1 else ''}.")
 
     for index, result in enumerate(results, start=1):
-        (song_id,
-        title,
-        artist,
-        album,
-        publication_year,
-        upload_date) = result
+        song_id = result[0]
+        title = result[1]
+        artist = result[2]
+        album = result[3]
+        publication_year = result[4]
+        upload_date = result[5]
 
         with st.expander(f"{index}. {title} — {artist}"):
             col1, col2 = st.columns(2)
@@ -85,7 +74,7 @@ def display_song_results(results: list[tuple[Any, ...]]) -> None:
                 logger.error(f'Failed to display full text for song id {song_id} due to {e}')
                 st.error("Could not load the full song text.")
 
-def display_word_results(results: list[tuple[Any, ...]]) -> None:
+def display_word_results(results: lis) -> None:
     """
     Display one word occurrence with Previous / Next navigation.
     :param results: Cached word occurrence rows from search_word().
@@ -105,16 +94,16 @@ def display_word_results(results: list[tuple[Any, ...]]) -> None:
     st.success(f"Found {len(results)} occurrence{'s' if len(results) != 1 else ''}.")
     st.caption(f"Occurrence {current_index + 1} of {len(results)}")
 
-    (occurrence_id,
-    song_id,
-    title,
-    artist,
-    stanza_number,
-    global_line_number,
-    line_number_in_stanza,
-    position_in_line,
-    position_in_song,
-    original_token) = results[current_index]
+    occurrence_id = results[current_index][0]
+    song_id = results[current_index][1]
+    title = results[current_index][2]
+    artist = results[current_index][3]
+    stanza_number = results[current_index][4]
+    global_line_number = results[current_index][5]
+    line_number_in_stanza = results[current_index][6]
+    position_in_line = results[current_index][7]
+    position_in_song = results[current_index][8]
+    original_token = results[current_index][9]
 
     col1, col2, col3 = st.columns(3)
 

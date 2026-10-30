@@ -1,26 +1,14 @@
 import logging
 from typing import Any
-
 import streamlit as st
-
-from src.group_service import (
-    create_group,
-    update_group,
-    delete_group,
-    add_word_to_group,
-    remove_word_from_group,
-    get_groups,
-    get_group_words,
-    get_group_occurrences
-)
+from src.group_service import *
 from src.logger_config import setup_logger
 
 setup_logger()
-
 logger = logging.getLogger(__name__)
 
 
-def build_group_options(groups: list[tuple[Any, ...]]) -> dict[str, int]:
+def build_group_options(groups: list) -> dict:
     """
     Converts database group rows into Streamlit selectbox options.
     :param groups: Group rows returned from get_groups().
@@ -36,7 +24,6 @@ def render_create_group() -> None:
     """
     Renders the interface for creating a new word group.
     Displays a persistent success message after creation and resets the form fields after a group is created successfully.
-    :return: None
     """
     logger.info("Rendering create group section")
     st.subheader("Create Group")
@@ -112,7 +99,6 @@ def render_group_editor(group_id: int, group_name: str, description: str | None)
     :param group_id: ID of the selected group.
     :param group_name: Current group name.
     :param description: Current group description.
-    :return: None.
     """
     logger.info(f'Rendering editor for group id {group_id}')
     st.subheader("Edit Group")
@@ -313,23 +299,16 @@ def render_group_occurrences(group_id: int) -> None:
 
     rows = []
 
-    for (word,
-         song_id,
-         song_title,
-         stanza_number,
-         global_line_number,
-         line_number_in_stanza,
-         position_in_line,
-         original_token) in occurrences:
+    for occurrence in occurrences:
         rows.append(
             {
-                "Word": word,
-                "Song": song_title,
-                "Stanza": stanza_number,
-                "Global Line": global_line_number,
-                "Line in Stanza": line_number_in_stanza,
-                "Position in Line": position_in_line,
-                "Original Token": original_token,
+                "Word": occurrence[0],
+                "Song": occurrence[2],
+                "Stanza": occurrence[3],
+                "Global Line": occurrence[4],
+                "Line in Stanza": occurrence[5],
+                "Position in Line": occurrence[6],
+                "Original Token": occurrence[7],
             }
         )
 

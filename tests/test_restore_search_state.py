@@ -22,7 +22,7 @@ OLD_RESULTS = [
 
 class RestoreSearchStateTests(unittest.TestCase):
     def setUp(self):
-        patcher = patch.object(xml_service, "restore_database_from_xml", return_value=RESTORED_COUNTS)
+        patcher = patch.object(xml_service, "import_database_from_xml", return_value=RESTORED_COUNTS)
         self.restore = patcher.start()
         self.addCleanup(patcher.stop)
 

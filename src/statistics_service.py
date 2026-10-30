@@ -2,8 +2,7 @@ import logging
 from typing import Optional
 
 from src.db import get_database_service
-from src.queries.db_queries import query_select_database_summary, query_select_song_statistics,
-    query_select_word_length_distribution, query_select_words_by_frequency, query_select_words_per_stanza
+from src.queries.db_queries import *
 
 logger = logging.getLogger(__name__)
 

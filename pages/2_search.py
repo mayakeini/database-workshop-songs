@@ -74,7 +74,7 @@ def display_song_results(results: list) -> None:
                 logger.error(f'Failed to display full text for song id {song_id} due to {e}')
                 st.error("Could not load the full song text.")
 
-def display_word_results(results: lis) -> None:
+def display_word_results(results: list) -> None:
     """
     Display one word occurrence with Previous / Next navigation.
     :param results: Cached word occurrence rows from search_word().

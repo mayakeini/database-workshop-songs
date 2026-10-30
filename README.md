@@ -110,7 +110,6 @@ database-workshop-songs-main/
 ├── README.md
 ├── requirements.txt
 ├── schema.sql
-├── drop_schema.sql
 ├── run_project.bat
 ├── run_project.sh
 ├── src/
@@ -135,8 +134,7 @@ database-workshop-songs-main/
 │   ├── 8_all_songs.py
 │   └── 9_delete_song.py
 ├── sample_songs/
-├── backup/
-└── tests/
+└── backup/
 ```
 
 ## Database Schema
@@ -427,26 +425,10 @@ Both contexts close the cursor and return the connection to the pool. New Oracle
 sessions receive the existing timezone setup. Song uploads and XML restores each
 keep all their writes in a single transaction.
 
-Run the automated regression tests after installing `requirements.txt` (the mocked service tests do not require a running Oracle database):
-
-```sh
-python -m unittest discover -s tests -v
-```
-
-To verify song-deletion cascades against a running Oracle database, opt in to
-the integration test. It creates temporary records and rolls back all its
-changes without deleting existing songs:
-
-```sh
-RUN_ORACLE_INTEGRATION=1 python -m unittest tests.test_song_deletion_oracle -v
-```
-
 ## Database schema lifecycle
 
 - `schema.sql` creates all eight tables, their foreign keys, the publication-year
   check, and a case-insensitive unique index on `LOWER(word_groups.group_name)`.
-- `drop_schema.sql` removes project tables and **permanently deletes all data**.
-  Run it only on the intended project schema.
 - For an existing database created before the case-insensitive index was added,
   run `CREATE UNIQUE INDEX ux_word_groups_name_ci ON word_groups (LOWER(group_name));`
   after resolving any case-insensitive duplicate names. Editing `schema.sql`

@@ -52,7 +52,7 @@ def render_create_phrase() -> None:
             placeholder="Example: love is",
         )
 
-        submitted = st.form_submit_button("Create and Search Phrase")
+        submitted = st.form_submit_button("Create Phrase")
 
     if not submitted:
         return

@@ -64,7 +64,9 @@ CREATE TABLE word_occurrences (
     CONSTRAINT chk_word_occurrences_position_song
         CHECK (position_in_song > 0),
     CONSTRAINT uq_word_occurrences_song_position
-        UNIQUE (song_id, position_in_song)
+        UNIQUE (song_id, position_in_song),
+    CONSTRAINT uq_word_occurrences_stanza_position
+        UNIQUE (stanza_id, line_number_in_stanza, position_in_line)
 );
 
 CREATE TABLE word_groups (

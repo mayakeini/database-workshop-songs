@@ -2,11 +2,13 @@ import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Any
+import xmlschema
 from src.db import get_database_service
 from src.queries import db_queries
 
 
 logger = logging.getLogger(__name__)
+BACKUP_SCHEMA = xmlschema.XMLSchema("backup/concordance_backup.xsd")
 
 
 def add_text_element(parent: ET.Element, tag: str, value: Any) -> ET.Element:
@@ -90,7 +92,7 @@ def export_database_to_xml() -> bytes:
                 add_text_element(song_element, "artist", artist)
                 add_text_element(song_element, "album", album)
                 add_text_element(song_element, "publication_year", publication_year)
-                add_text_element(song_element, "upload_date", upload_date)
+                add_text_element(song_element, "upload_date", datetime.fromisoformat(upload_date))
 
             # STANZAS
             stanzas_element = ET.SubElement(root, "stanzas")
@@ -143,7 +145,7 @@ def export_database_to_xml() -> bytes:
                 group_element = ET.SubElement(groups_element, "group", id=str(group_id))
                 add_text_element(group_element, "group_name", group_name)
                 add_text_element(group_element, "description", description)
-                add_text_element(group_element, "creation_date", creation_date)
+                add_text_element(group_element, "creation_date", datetime.fromisoformat(creation_date))
 
             # GROUP WORDS
             group_words_element = ET.SubElement(root, "group_words")
@@ -162,7 +164,7 @@ def export_database_to_xml() -> bytes:
                 phrase_element = ET.SubElement(phrases_element, "phrase", id=str(phrase_id))
                 add_text_element(phrase_element, "phrase_name", phrase_name)
                 add_text_element(phrase_element, "phrase_text", phrase_text)
-                add_text_element(phrase_element, "creation_date", creation_date)
+                add_text_element(phrase_element, "creation_date", datetime.fromisoformat(creation_date))
 
             # PHRASE OCCURRENCES
             phrase_occurrences_element = ET.SubElement(root, "phrase_occurrences")
@@ -198,16 +200,8 @@ def export_database_to_xml() -> bytes:
         raise
 
 
-def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
-    """
-    Replaces the current project database contents with data from a concordance XML backup.
-    Existing project data is deleted first. New database IDs are generated during restoration, while internal
-    relationships are rebuilt using mappings between the old XML IDs and new Oracle IDs.
-    :param xml_data: XML backup content as bytes.
-    :return: A dictionary containing the number of restored records for each major entity.
-    """
-    logger.info("Starting database restoration from XML")
-
+def parse_and_validate_backup(xml_data: bytes) -> ET.Element:
+    """Parse and validate the entire backup before opening a database transaction."""
     try:
         root = ET.fromstring(xml_data)
 
@@ -215,26 +209,33 @@ def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
         logger.error("Uploaded XML could not be parsed")
         raise ValueError("The uploaded file is not valid XML.")
 
-    if root.tag != "concordance_backup":
-        logger.error(f'Invalid XML root element: {root.tag}')
-        raise ValueError("The XML file is not a concordance backup.")
+    # Older exports use Oracle's "YYYY-MM-DD HH:MM:SS +HH:MM" format.
+    # Normalize in memory so xs:dateTime can validate those backups too.
+    for path in ("songs/song/upload_date", "word_groups/group/creation_date",
+                 "phrases/phrase/creation_date"):
+        for element in root.findall(path):
+            if element.text:
+                element.text = datetime.fromisoformat(element.text).isoformat()
 
-    required_sections = [
-        "songs",
-        "stanzas",
-        "words",
-        "word_occurrences",
-        "word_groups",
-        "group_words",
-        "phrases",
-        "phrase_occurrences"
-    ]
+    try:
+        BACKUP_SCHEMA.validate(root)
+    except xmlschema.XMLSchemaValidationError as error:
+        raise ValueError(f"Invalid backup at {error.path}: {error.reason}") from error
 
-    for section_name in required_sections:
-        if root.find(section_name) is None:
-            logger.error(f"Required XML section '{section_name}' is missing")
-            raise ValueError(f"Required XML section '{section_name}' is missing."
-            )
+    return root
+
+
+def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
+    """
+    Replaces the current project database contents with data from a concordance XML backup.
+    The complete backup is validated against the XSD before any database changes.
+    New database IDs are generated during restoration, while internal relationships
+    are rebuilt using mappings between the old XML IDs and new Oracle IDs.
+    :param xml_data: XML backup content as bytes.
+    :return: A dictionary containing the number of restored records for each major entity.
+    """
+    logger.info("Starting database restoration from XML")
+    root = parse_and_validate_backup(xml_data)
 
     counts: dict[str, int] = {
         "songs": 0,
@@ -275,9 +276,6 @@ def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
             # SONGS
             songs_section = root.find("songs")
 
-            if songs_section is None:
-                raise ValueError("Required XML section 'songs' is missing.")
-
             for song in songs_section.findall("song"):
                 old_id = int(song.attrib["id"])
                 new_id_var = cursor.var(int)
@@ -299,9 +297,6 @@ def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
             # STANZAS
             stanzas_section = root.find("stanzas")
 
-            if stanzas_section is None:
-                raise ValueError("Required XML section 'stanzas' is missing.")
-
             for stanza in stanzas_section.findall("stanza"):
                 old_id = int(stanza.attrib["id"])
                 old_song_id = int(get_required_text(stanza, "song_id"))
@@ -318,9 +313,6 @@ def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
             # WORDS
             words_section = root.find("words")
 
-            if words_section is None:
-                raise ValueError("Required XML section 'words' is missing.")
-
             for word in words_section.findall("word"):
                 old_id = int(word.attrib["id"])
                 new_id_var = cursor.var(int)
@@ -335,9 +327,6 @@ def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
 
             # WORD OCCURRENCES
             occurrences_section = root.find("word_occurrences")
-
-            if occurrences_section is None:
-                raise ValueError("Required XML section 'word_occurrences' is missing.")
 
             for occurrence in occurrences_section.findall("occurrence"):
                 old_occurrence_id = int(occurrence.attrib["id"])
@@ -364,9 +353,6 @@ def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
             # WORD GROUPS
             groups_section = root.find("word_groups")
 
-            if groups_section is None:
-                raise ValueError("Required XML section 'word_groups' is missing.")
-
             for group in groups_section.findall("group"):
                 old_id = int(group.attrib["id"])
                 new_id_var = cursor.var(int)
@@ -385,9 +371,6 @@ def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
             # GROUP WORDS
             group_words_section = root.find("group_words")
 
-            if group_words_section is None:
-                raise ValueError("Required XML section 'group_words' is missing.")
-
             for relation in group_words_section.findall("group_word"):
                 old_group_id = int(get_required_text(relation, "group_id"))
                 old_word_id = int(get_required_text(relation, "word_id"))
@@ -401,9 +384,6 @@ def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
 
             # PHRASES
             phrases_section = root.find("phrases")
-
-            if phrases_section is None:
-                raise ValueError("Required XML section 'phrases' is missing.")
 
             for phrase in phrases_section.findall("phrase"):
                 old_id = int(phrase.attrib["id"])
@@ -423,9 +403,6 @@ def import_database_from_xml(xml_data: bytes) -> dict[str, int]:
 
             # PHRASE OCCURRENCES
             phrase_occurrences_section = root.find("phrase_occurrences")
-
-            if phrase_occurrences_section is None:
-                raise ValueError("Required XML section 'phrase_occurrences' is missing.")
 
             for occurrence in phrase_occurrences_section.findall("phrase_occurrence"):
                 old_phrase_id = int(get_required_text(occurrence, "phrase_id"))

@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:annotation>
+    <xs:documentation>
+      Concordance backup version 1. All eight data sections are required but may
+      be empty. Metadata, album and description are optional. Dates use ISO 8601;
+      the importer normalizes the space-separated dates in older backups first.
+      Lengths are in characters; Oracle additionally enforces its column byte
+      limits and case-insensitive group-name uniqueness during the transaction.
+    </xs:documentation>
+  </xs:annotation>
+
+  <xs:simpleType name="text100">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="100"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="optionalText100">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="100"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="text200">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="200"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="text300">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="300"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="optionalText500">
+    <xs:restriction base="xs:string">
+      <xs:maxLength value="500"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="text1000">
+    <xs:restriction base="xs:string">
+      <xs:minLength value="1"/>
+      <xs:maxLength value="1000"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="publicationYear">
+    <xs:restriction base="xs:integer">
+      <xs:minInclusive value="1000"/>
+      <xs:maxInclusive value="2100"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="songType">
+    <xs:all>
+      <xs:element name="title" type="text100"/>
+      <xs:element name="artist" type="text100"/>
+      <xs:element name="album" type="optionalText100" minOccurs="0"/>
+      <xs:element name="publication_year" type="publicationYear"/>
+      <xs:element name="upload_date" type="xs:dateTime"/>
+    </xs:all>
+    <xs:attribute name="id" type="xs:positiveInteger" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="stanzaType">
+    <xs:all>
+      <xs:element name="song_id" type="xs:positiveInteger"/>
+      <xs:element name="stanza_number" type="xs:positiveInteger"/>
+    </xs:all>
+    <xs:attribute name="id" type="xs:positiveInteger" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="wordType">
+    <xs:all>
+      <xs:element name="text" type="text100"/>
+    </xs:all>
+    <xs:attribute name="id" type="xs:positiveInteger" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="occurrenceType">
+    <xs:all>
+      <xs:element name="word_id" type="xs:positiveInteger"/>
+      <xs:element name="song_id" type="xs:positiveInteger"/>
+      <xs:element name="stanza_id" type="xs:positiveInteger"/>
+      <xs:element name="global_line_number" type="xs:positiveInteger"/>
+      <xs:element name="line_number_in_stanza" type="xs:positiveInteger"/>
+      <xs:element name="position_in_line" type="xs:positiveInteger"/>
+      <xs:element name="position_in_song" type="xs:positiveInteger"/>
+      <xs:element name="original_token" type="text300"/>
+    </xs:all>
+    <xs:attribute name="id" type="xs:positiveInteger" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="groupType">
+    <xs:all>
+      <xs:element name="group_name" type="text100"/>
+      <xs:element name="description" type="optionalText500" minOccurs="0"/>
+      <xs:element name="creation_date" type="xs:dateTime"/>
+    </xs:all>
+    <xs:attribute name="id" type="xs:positiveInteger" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="groupWordType">
+    <xs:all>
+      <xs:element name="group_id" type="xs:positiveInteger"/>
+      <xs:element name="word_id" type="xs:positiveInteger"/>
+    </xs:all>
+  </xs:complexType>
+  <xs:complexType name="phraseType">
+    <xs:all>
+      <xs:element name="phrase_name" type="text200"/>
+      <xs:element name="phrase_text" type="text1000"/>
+      <xs:element name="creation_date" type="xs:dateTime"/>
+    </xs:all>
+    <xs:attribute name="id" type="xs:positiveInteger" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="phraseOccurrenceType">
+    <xs:all>
+      <xs:element name="phrase_id" type="xs:positiveInteger"/>
+      <xs:element name="song_id" type="xs:positiveInteger"/>
+      <xs:element name="start_occurrence_id" type="xs:positiveInteger"/>
+      <xs:element name="end_occurrence_id" type="xs:positiveInteger"/>
+    </xs:all>
+    <xs:attribute name="id" type="xs:positiveInteger" use="required"/>
+  </xs:complexType>
+
+  <xs:element name="concordance_backup">
+    <xs:complexType>
+      <xs:all>
+        <xs:element name="metadata" minOccurs="0">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="created_at" type="xs:dateTime"/>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="songs">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="song" type="songType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="stanzas">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="stanza" type="stanzaType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="words">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="word" type="wordType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="word_occurrences">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="occurrence" type="occurrenceType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="word_groups">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="group" type="groupType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="group_words">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="group_word" type="groupWordType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="phrases">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="phrase" type="phraseType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="phrase_occurrences">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="phrase_occurrence" type="phraseOccurrenceType" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:all>
+      <xs:attribute name="version" type="xs:string" use="required" fixed="1"/>
+    </xs:complexType>
+
+    <!-- XML identifiers must be unique before old IDs are mapped to new IDs. -->
+    <xs:key name="songIds">
+      <xs:selector xpath="songs/song"/><xs:field xpath="@id"/>
+    </xs:key>
+    <xs:key name="stanzaIds">
+      <xs:selector xpath="stanzas/stanza"/><xs:field xpath="@id"/>
+    </xs:key>
+    <xs:key name="wordIds">
+      <xs:selector xpath="words/word"/><xs:field xpath="@id"/>
+    </xs:key>
+    <xs:key name="occurrenceIds">
+      <xs:selector xpath="word_occurrences/occurrence"/><xs:field xpath="@id"/>
+    </xs:key>
+    <xs:key name="groupIds">
+      <xs:selector xpath="word_groups/group"/><xs:field xpath="@id"/>
+    </xs:key>
+    <xs:key name="phraseIds">
+      <xs:selector xpath="phrases/phrase"/><xs:field xpath="@id"/>
+    </xs:key>
+    <xs:key name="phraseOccurrenceIds">
+      <xs:selector xpath="phrase_occurrences/phrase_occurrence"/><xs:field xpath="@id"/>
+    </xs:key>
+
+    <!-- All relationship targets must exist in this same backup. -->
+    <xs:keyref name="songReferences" refer="songIds">
+      <xs:selector xpath="stanzas/stanza | word_occurrences/occurrence | phrase_occurrences/phrase_occurrence"/>
+      <xs:field xpath="song_id"/>
+    </xs:keyref>
+    <xs:keyref name="stanzaReferences" refer="stanzaIds">
+      <xs:selector xpath="word_occurrences/occurrence"/><xs:field xpath="stanza_id"/>
+    </xs:keyref>
+    <xs:keyref name="wordReferences" refer="wordIds">
+      <xs:selector xpath="word_occurrences/occurrence | group_words/group_word"/>
+      <xs:field xpath="word_id"/>
+    </xs:keyref>
+    <xs:keyref name="groupReferences" refer="groupIds">
+      <xs:selector xpath="group_words/group_word"/><xs:field xpath="group_id"/>
+    </xs:keyref>
+    <xs:keyref name="phraseReferences" refer="phraseIds">
+      <xs:selector xpath="phrase_occurrences/phrase_occurrence"/><xs:field xpath="phrase_id"/>
+    </xs:keyref>
+    <xs:keyref name="startReferences" refer="occurrenceIds">
+      <xs:selector xpath="phrase_occurrences/phrase_occurrence"/><xs:field xpath="start_occurrence_id"/>
+    </xs:keyref>
+    <xs:keyref name="endReferences" refer="occurrenceIds">
+      <xs:selector xpath="phrase_occurrences/phrase_occurrence"/><xs:field xpath="end_occurrence_id"/>
+    </xs:keyref>
+
+    <!-- Uniqueness constraints corresponding to schema.sql. -->
+    <xs:unique name="stanzaNumbers">
+      <xs:selector xpath="stanzas/stanza"/>
+      <xs:field xpath="song_id"/><xs:field xpath="stanza_number"/>
+    </xs:unique>
+    <xs:unique name="wordTexts">
+      <xs:selector xpath="words/word"/><xs:field xpath="text"/>
+    </xs:unique>
+    <xs:unique name="songPositions">
+      <xs:selector xpath="word_occurrences/occurrence"/>
+      <xs:field xpath="song_id"/><xs:field xpath="position_in_song"/>
+    </xs:unique>
+    <xs:unique name="stanzaPositions">
+      <xs:selector xpath="word_occurrences/occurrence"/>
+      <xs:field xpath="stanza_id"/><xs:field xpath="line_number_in_stanza"/>
+      <xs:field xpath="position_in_line"/>
+    </xs:unique>
+    <xs:unique name="groupNames">
+      <xs:selector xpath="word_groups/group"/><xs:field xpath="group_name"/>
+    </xs:unique>
+    <xs:unique name="groupMemberships">
+      <xs:selector xpath="group_words/group_word"/>
+      <xs:field xpath="group_id"/><xs:field xpath="word_id"/>
+    </xs:unique>
+    <xs:unique name="phraseNames">
+      <xs:selector xpath="phrases/phrase"/><xs:field xpath="phrase_name"/>
+    </xs:unique>
+    <xs:unique name="phraseLocations">
+      <xs:selector xpath="phrase_occurrences/phrase_occurrence"/>
+      <xs:field xpath="phrase_id"/><xs:field xpath="song_id"/>
+      <xs:field xpath="start_occurrence_id"/><xs:field xpath="end_occurrence_id"/>
+    </xs:unique>
+  </xs:element>
+</xs:schema>

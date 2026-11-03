@@ -2,3 +2,4 @@ oracledb
 streamlit
 altair
 pandas
+xmlschema
